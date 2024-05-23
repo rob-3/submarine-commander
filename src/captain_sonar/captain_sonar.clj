@@ -19,4 +19,5 @@
   (jetty/run-jetty #(app %) {:port 3000 :join? false}))
 
 (comment
-  (-main))
+  (-main)
+  (html [:h1 "hi"] [:h1 "hi"]))
