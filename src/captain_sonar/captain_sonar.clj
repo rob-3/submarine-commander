@@ -3,8 +3,8 @@
   (:require [ring.adapter.jetty :as jetty]
             [hiccup2.core :as h]))
 
-(defmacro html [x]
-  `(str (h/html ~x)))
+(defmacro html [& args]
+  `(str (h/html ~@args)))
 
 (defn app [request]
   (case [(:request-method request) (:uri request)]
