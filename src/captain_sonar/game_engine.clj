@@ -1,4 +1,6 @@
-(ns captain-sonar.game-engine)
+(ns captain-sonar.game-engine
+  (:require
+   [clojure.set :refer [intersection union]]))
 
 (def state
   {:red {:location [1 1]
@@ -24,3 +26,25 @@
                        :south #{:green :yellow1 :red1 :red2 :reactor :yellow2}
                        :east #{:green1 :yellow :red :reactor :green2 :reactor2}}
           :surfaced false}})
+
+(defn green-broken? [{:keys [west north south east]}]
+  (let [marked-systems (union west north south east)]
+    (boolean (seq (intersection marked-systems #{:green :green1 :green2})))))
+
+(defn red-broken? [{:keys [west north south east]}]
+  (let [marked-systems (union west north south east)]
+    (boolean (seq (intersection marked-systems #{:red :red1 :red2})))))
+
+(defn yellow-broken? [{:keys [west north south east]}]
+  (let [marked-systems (union west north south east)]
+    (boolean (seq (intersection marked-systems #{:yellow :yellow1 :yellow2})))))
+
+(comment
+  (green-broken? {:west #{:green}
+                  :north #{}
+                  :south #{}
+                  :east #{}})
+  (green-broken? {:west #{:red}
+                  :north #{}
+                  :south #{}
+                  :east #{}}))
