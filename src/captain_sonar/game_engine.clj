@@ -39,6 +39,26 @@
   (let [marked-systems (union west north south east)]
     (boolean (seq (intersection marked-systems #{:yellow :yellow1 :yellow2})))))
 
+(defn torpedo-online? [{:keys [systems breakdowns]}]
+  (and (>= (:torpedo systems) 3)
+       (not (red-broken? breakdowns))))
+
+(defn mine-online? [{:keys [systems breakdowns]}]
+ (and (>= (:mine systems) 3)
+      (not (red-broken? breakdowns))))
+
+(defn drone-online? [{:keys [systems breakdowns]}]
+ (and (>= (:drone systems) 4)
+      (not (green-broken? breakdowns))))
+
+(defn sonar-online? [{:keys [systems breakdowns]}]
+ (and (>= (:sonar systems) 3)
+      (not (green-broken? breakdowns))))
+
+(defn silence-online? [{:keys [systems breakdowns]}]
+ (and (>= (:silence systems) 6)
+      (not (yellow-broken? breakdowns))))
+
 (comment
   (green-broken? {:west #{:green}
                   :north #{}
