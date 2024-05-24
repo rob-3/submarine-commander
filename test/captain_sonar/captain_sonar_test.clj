@@ -1,9 +1,9 @@
 (ns captain-sonar.captain-sonar-test
   (:require
-   [captain-sonar.game-engine :refer [drone-online? green-broken? mine-online?
-                                      red-broken? silence-online?
-                                      sonar-online? torpedo-online?
-                                      yellow-broken?]]
+   [captain-sonar.systems :refer [drone-online? green-broken? mine-online?
+                                  red-broken? silence-online?
+                                  sonar-online? torpedo-online?
+                                  yellow-broken?]]
    [clojure.test :refer [deftest is run-tests testing]]))
 
 (deftest system-breakdown-functions
