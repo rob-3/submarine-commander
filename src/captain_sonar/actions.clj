@@ -1,15 +1,14 @@
-(ns captain-sonar.actions)
+(ns captain-sonar.actions 
+  (:require
+   [captain-sonar.maps :as maps]))
 
-;; TODO add islands
-(def islands #{})
-
-(defn make-move [move [x y]]
+(defn make-move [move [x y] island-map]
   (let [[x' y'] (case move
                   :north [x (dec y)]
                   :south [x (inc y)]
                   :east [(inc x) y]
                   :west [(dec x) y])]
-    (if (contains? islands [x' y'])
+    (if (contains? island-map [x' y'])
       :illegal-island-move
       (if (and (>= 15 x' 1)
                (>= 15 y' 1))
@@ -54,7 +53,8 @@
 
 (defn attempt-move
   [{:keys [location systems breakdowns] :as state} direction system-to-charge breakdown]
-  (let [location' (make-move direction location)
+  ;; FIXME pass map as parameter
+  (let [location' (make-move direction location maps/alpha)
         systems' (charge-system system-to-charge systems)
         breakdowns' (breakdown-system breakdown direction breakdowns)]
     (cond
@@ -76,7 +76,7 @@
 
 (comment
   ;; FIXME these are terrible inline (comment) tests; we'll make these proper soon
-  (def x {:location [1 2]
+  (def x {:location [2 5]
           :health 4
           :systems {:torpedo 0
                     :mine 0
