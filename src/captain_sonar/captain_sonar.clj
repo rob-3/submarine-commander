@@ -48,15 +48,15 @@
     (page-skeleton (index uuid))))
 
 (defn room [uuid]
-  (str (h/html [:div (str "Room " uuid)]
-               [:div {:hx-ext "ws" :ws-connect "/ws"}])))
+  [:div (str "Room " uuid)
+   [:div {:hx-ext "ws" :ws-connect "/ws"}]])
 
 (ns-unmap *ns* 'room-handler)
 (defmulti room-handler request-type)
 (defmethod room-handler :htmx [request]
   (def request request)
   (let [uuid (:id (query-params request))]
-    (room uuid)))
+    (h/html (room uuid))))
 
 (defmethod room-handler :default [request]
   (let [uuid (:id (query-params request))]
@@ -66,10 +66,10 @@
 
 (defn ws-handler [request]
   (if (ws/upgrade-request? request)
-      {::ws/listener
-        {:on-open (fn [_socket] (println "connected"))
-         :on-message (fn [_socket message] (println message))}}
-      {:status 400 :headers {} :body "Websocket upgrade requests only!"}))
+    {::ws/listener
+     {:on-open (fn [_socket] (println "connected"))
+      :on-message (fn [_socket message] (println message))}}
+    {:status 400 :headers {} :body "Websocket upgrade requests only!"}))
 
 (defn app [request]
   (case [(:request-method request) (:uri request)]
