@@ -5,7 +5,8 @@
    [hiccup.page :as page]
    [hiccup2.core :as h]
    [ring.adapter.jetty :as jetty]
-   [ring.util.codec :refer [form-decode]]))
+   [ring.util.codec :refer [form-decode]]
+   [ring.websocket :as ws]))
 
 (defmacro html [& args]
   `(str (h/html ~@args)))
@@ -37,6 +38,7 @@
                         :src "https://unpkg.com/htmx.org@1.9.12"
                         :integrity "sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2"
                         :crossorigin "anonymous"}]
+              [:script {:src "https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js"}]
               (h/html children)))
 
 (ns-unmap *ns* 'index-page)
@@ -46,7 +48,8 @@
     (page-skeleton (index uuid))))
 
 (defn room [uuid]
-  (str (h/html [:div (str "Room " uuid)])))
+  (str (h/html [:div (str "Room " uuid)]
+               [:div {:hx-ext "ws" :ws-connect "/ws"}])))
 
 (ns-unmap *ns* 'room-handler)
 (defmulti room-handler request-type)
@@ -61,12 +64,20 @@
                     [:h1.title "Captain Sonar"]
                     (room uuid)])))
 
+(defn ws-handler [request]
+  (if (ws/upgrade-request? request)
+      {::ws/listener
+        {:on-open (fn [_socket] (println "connected"))
+         :on-message (fn [_socket message] (println message))}}
+      {:status 400 :headers {} :body "Websocket upgrade requests only!"}))
+
 (defn app [request]
   (case [(:request-method request) (:uri request)]
     [:get "/"] {:status 200 :headers {} :body (index-page request)}
     [:get "/index.css"] (file-rsp "resources/index.css")
     [:post "/"] {:status 200 :headers {} :body "post"}
     [:get "/room"] {:status 200 :headers {} :body (str (room-handler request))}
+    [:get "/ws"] (ws-handler request)
     {:status 404 :headers {} :body (html [:h1 "404 Not Found"])}))
 
 (defn -main
