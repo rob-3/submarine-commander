@@ -14,15 +14,15 @@
   {:status 200 :headers {} :body (slurp f)})
 
 (defn query-params [request]
- (-> request :query-string form-decode keywordize-keys))
+  (-> request :query-string form-decode keywordize-keys))
 
 (defn index [uuid]
   (let [url (str "/room?id=" uuid)]
     [:div.container
-        [:h1.title "Captain Sonar"]
-        [:button {:hx-get url
-                  :hx-push-url "true"
-                  :hx-swap "outerHTML"} "Create a room"]]))
+     [:h1.title "Captain Sonar"]
+     [:button.button {:hx-get url
+                      :hx-push-url "true"
+                      :hx-swap "outerHTML"} "Create a room"]]))
 
 (defn request-type [r]
   (let [headers (:headers r)
@@ -31,16 +31,19 @@
       :htmx
       :default)))
 
+(defn page-skeleton [children]
+  (page/html5 (page/include-css "/index.css")
+              [:script {:type "text/javascript"
+                        :src "https://unpkg.com/htmx.org@1.9.12"
+                        :integrity "sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2"
+                        :crossorigin "anonymous"}]
+              (h/html children)))
+
 (ns-unmap *ns* 'index-page)
 (defmulti index-page request-type)
 (defmethod index-page :default [_request]
   (let [uuid (random-uuid)]
-    (page/html5 (page/include-css "/index.css")
-                [:script {:type "text/javascript"
-                          :src "https://unpkg.com/htmx.org@1.9.12"
-                          :integrity "sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2"
-                          :crossorigin "anonymous"}]
-                (h/html (index uuid)))))
+    (page-skeleton (index uuid))))
 
 (defn room [uuid]
   (str (h/html [:div (str "Room " uuid)])))
@@ -49,19 +52,14 @@
 (defmulti room-handler request-type)
 (defmethod room-handler :htmx [request]
   (def request request)
-  (let [uuid (:id (query-params request))] 
+  (let [uuid (:id (query-params request))]
     (room uuid)))
 
 (defmethod room-handler :default [request]
-  (let [uuid (:id (query-params request))] 
-    (page/html5 (page/include-css "/index.css")
-                [:script {:type "text/javascript"
-                          :src "https://unpkg.com/htmx.org@1.9.12"
-                          :integrity "sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2"
-                          :crossorigin "anonymous"}]
-                (h/html [:div.container
-                         [:h1.title "Captain Sonar"]
-                         (room uuid)]))))
+  (let [uuid (:id (query-params request))]
+    (page-skeleton [:div.container
+                    [:h1.title "Captain Sonar"]
+                    (room uuid)])))
 
 (defn app [request]
   (case [(:request-method request) (:uri request)]
