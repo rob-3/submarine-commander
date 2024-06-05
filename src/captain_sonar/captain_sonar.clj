@@ -49,7 +49,9 @@
 
 (defn room [uuid]
   [:div (str "Room " uuid)
-   [:div {:hx-ext "ws" :ws-connect "/ws"}]])
+   [:div#ws {:hx-ext "ws" :ws-connect "/ws"}]
+   [:div#messages]
+   [:button {:hx-get "/delete" :hx-target "#ws" :hx-swap "outerHTML"} "Delete"]])
 
 (ns-unmap *ns* 'room-handler)
 (defmulti room-handler request-type)
@@ -67,8 +69,11 @@
 (defn ws-handler [request]
   (if (ws/upgrade-request? request)
     {::ws/listener
-     {:on-open (fn [_socket] (println "connected"))
-      :on-message (fn [_socket message] (println message))}}
+     {:on-open (fn [socket]
+                 (println "connected")
+                 (ws/send socket (html [:div#messages {:hx-swap-oob "beforeend"} [:div "Howdy!"]])))
+      :on-message (fn [_socket message] (println message))
+      :on-close (fn [_socket _code _reason] (println "Goodbye!"))}}
     {:status 400 :headers {} :body "Websocket upgrade requests only!"}))
 
 (defn app [request]
@@ -77,6 +82,7 @@
     [:get "/index.css"] (file-rsp "resources/index.css")
     [:post "/"] {:status 200 :headers {} :body "post"}
     [:get "/room"] {:status 200 :headers {} :body (str (room-handler request))}
+    [:get "/delete"] {:status 200 :headers {} :body ""}
     [:get "/ws"] (ws-handler request)
     {:status 404 :headers {} :body (html [:h1 "404 Not Found"])}))
 
