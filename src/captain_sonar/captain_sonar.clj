@@ -49,14 +49,14 @@
 
 (defn room [uuid]
   [:div (str "Room " uuid)
-   [:div#ws {:hx-ext "ws" :ws-connect "/ws"}]
+   [:div#ws {:hx-ext "ws" :ws-connect "/ws"}
+    [:div {:hx-trigger "click" :ws-send "" :id "howdy"} "hi"]]
    [:div#messages]
    [:button {:hx-get "/delete" :hx-target "#ws" :hx-swap "outerHTML"} "Delete"]])
 
 (ns-unmap *ns* 'room-handler)
 (defmulti room-handler request-type)
 (defmethod room-handler :htmx [request]
-  (def request request)
   (let [uuid (:id (query-params request))]
     (h/html (room uuid))))
 
@@ -66,12 +66,25 @@
                     [:h1.title "Captain Sonar"]
                     (room uuid)])))
 
+(defn extract-token [auth-string]
+  (second (re-find #"^Bearer (.*)" auth-string)))
+
+(def sockets (atom {}))
 (defn ws-handler [request]
   (if (ws/upgrade-request? request)
     {::ws/listener
      {:on-open (fn [socket]
                  (println "connected")
-                 (ws/send socket (html [:div#messages {:hx-swap-oob "beforeend"} [:div "Howdy!"]])))
+                 (ws/send socket (html [:div#messages {:hx-swap-oob "beforeend"} [:div "Howdy!"]]))
+                 (let [auth-header (or (get-in request [:headers "Authorization"]) "")
+                       token (extract-token auth-header)]
+                   (swap! sockets assoc socket token))
+                 (let [keep-alive (fn []
+                                    (while (ws/open? socket)
+                                      (ws/ping socket)
+                                      (Thread/sleep 10000)))]
+                   (future (keep-alive))))
+      :on-pong (fn [_socket _buffer] (println "pong received"))
       :on-message (fn [_socket message] (println message))
       :on-close (fn [_socket _code _reason] (println "Goodbye!"))}}
     {:status 400 :headers {} :body "Websocket upgrade requests only!"}))
