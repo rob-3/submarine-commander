@@ -12,7 +12,7 @@
   `(str (h/html ~@args)))
 
 (defn file-rsp [f]
-  {:status 200 :headers {} :body (slurp f)})
+  {:status 200 :headers {"vary" "hx-request"} :body (slurp f)})
 
 (defn query-params [request]
   (-> request :query-string form-decode keywordize-keys))
@@ -48,9 +48,9 @@
     (page-skeleton (index uuid))))
 
 (defn room [uuid]
-  [:div (str "Room " uuid)
-   [:div#ws {:hx-ext "ws" :ws-connect "/ws"}
-    [:div {:hx-trigger "click" :ws-send "" :id "howdy"} "hi"]]
+  [:div#ws {:hx-ext "ws" :ws-connect "/ws"}
+   [:div (str "Room " uuid)]
+   [:div {:hx-trigger "click" :ws-send "" :id "howdy"} "hi"]
    [:div#messages]
    [:button {:hx-get "/delete" :hx-target "#ws" :hx-swap "outerHTML"} "Delete"]])
 
@@ -74,7 +74,7 @@
   (if (ws/upgrade-request? request)
     {::ws/listener
      {:on-open (fn [socket]
-                 (println "connected")
+                 (println (:remote-addr request) "connected")
                  (ws/send socket (html [:div#messages {:hx-swap-oob "beforeend"} [:div "Howdy!"]]))
                  (let [auth-header (or (get-in request [:headers "Authorization"]) "")
                        token (extract-token auth-header)]
@@ -82,22 +82,22 @@
                  (let [keep-alive (fn []
                                     (while (ws/open? socket)
                                       (ws/ping socket)
-                                      (Thread/sleep 10000)))]
+                                      (Thread/sleep 1000)))]
                    (future (keep-alive))))
-      :on-pong (fn [_socket _buffer] (println "pong received"))
+      :on-pong (fn [_socket _buffer] (println (:remote-addr request) "pong"))
       :on-message (fn [_socket message] (println message))
-      :on-close (fn [_socket _code _reason] (println "Goodbye!"))}}
-    {:status 400 :headers {} :body "Websocket upgrade requests only!"}))
+      :on-close (fn [_socket _code _reason] (println (:remote-addr request) "disconnected"))}}
+    {:status 400 :headers {"vary" "hx-request"} :body "Websocket upgrade requests only!"}))
 
 (defn app [request]
   (case [(:request-method request) (:uri request)]
-    [:get "/"] {:status 200 :headers {} :body (index-page request)}
+    [:get "/"] {:status 200 :headers {"vary" "hx-request"} :body (index-page request)}
     [:get "/index.css"] (file-rsp "resources/index.css")
-    [:post "/"] {:status 200 :headers {} :body "post"}
-    [:get "/room"] {:status 200 :headers {} :body (str (room-handler request))}
-    [:get "/delete"] {:status 200 :headers {} :body ""}
+    [:post "/"] {:status 200 :headers {"vary" "hx-request"} :body "post"}
+    [:get "/room"] {:status 200 :headers {"vary" "hx-request"} :body (str (room-handler request))}
+    [:get "/delete"] {:status 200 :headers {"vary" "hx-request"} :body ""}
     [:get "/ws"] (ws-handler request)
-    {:status 404 :headers {} :body (html [:h1 "404 Not Found"])}))
+    {:status 404 :headers {"vary" "hx-request"} :body (html [:h1 "404 Not Found"])}))
 
 (defn -main
   "Start here!"
