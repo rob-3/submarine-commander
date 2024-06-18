@@ -53,7 +53,7 @@
 
 ;; FIXME we should probably maintain a user data map that allows user->room too
 ;; That way we can prevent people from joining multiple rooms by mistake.
-(defonce rooms (atom {}))
+(defonce state (atom {:rooms {} :users {}}))
 
 (defn room-html [room-id player-id {:keys [admin players]}]
   {:pre [room-id player-id (not (nil? admin)) players]}
@@ -88,19 +88,16 @@
 (defn linearize! [f]
   (>!! c f))
 
-(defn join-room! [room player]
-  (swap! rooms #(-> %
-                    (remove-from-all-rooms player)
-                    (add-to-room room player))))
+(defn join-room [rooms room player]
+  (-> rooms
+      (remove-from-all-rooms player)
+      (add-to-room room player)))
 
-(defn leave-room! [player]
-  (swap! rooms #(remove-from-all-rooms % player)))
+(defn leave-room [rooms player]
+  (remove-from-all-rooms rooms player))
 
-(defonce users (atom {}))
-
-(defn broadcast-update! [room-id]
-  (let [room (get @rooms room-id)
-        users @users]
+(defn broadcast-update! [{:keys [rooms users]} room-id]
+  (let [room (get rooms room-id)]
     (doseq [player-id (shuffle (:players room))
             :let [socket (get-in users [player-id :socket])]]
       (ws/send socket (html (room-html room-id player-id room))))))
@@ -110,14 +107,15 @@
 (defmethod room-handler :htmx [request]
   (let [room-id (:id (query-params request))
         player-id (:value (get (:cookies request) "id"))
-        rooms @rooms
+        rooms (:rooms @state)
         room (or (get rooms room-id) {:admin false :players #{}})]
     (h/html (room-html room-id player-id room))))
 
 (defmethod room-handler :default [request]
   (let [room-id (:id (query-params request))
         player-id (:value (get (:cookies request) "id"))
-        rooms @rooms
+        _ (assert (not (nil? player-id)) "player-id is nil!")
+        rooms (:rooms @state)
         room (or (get rooms room-id) {:admin false :players #{}})]
     (page-skeleton [:div.container
                     [:h1.title "Captain Sonar"]
@@ -127,9 +125,10 @@
   (let [{event "event" room-id "room"} (json/parse-string message)]
     (prn message)
     (case event
-      "join-room" (linearize! #(do
-                                 (join-room! room-id player-id)
-                                 (broadcast-update! room-id))))))
+      "join-room" (linearize! #(let [state' (swap! state (fn [{:keys [rooms users]}]
+                                                           (let [rooms' (join-room rooms room-id player-id)]
+                                                             {:rooms rooms' :users users})))]
+                                 (broadcast-update! state' room-id))))))
 
 (defn ws-handler [request]
   (if (ws/upgrade-request? request)
@@ -139,7 +138,7 @@
                    (println (:remote-addr request) "connected")
                    ;(ws/send socket (html [:div#messages {:hx-swap-oob "beforeend"} [:div "Howdy!"]]))
                    (let [current-time (System/currentTimeMillis)]
-                     (swap! users assoc user-id {:socket socket :last-ping current-time}))
+                     (swap! state assoc-in [:users user-id] {:socket socket :last-ping current-time}))
                    (let [keep-alive (fn []
                                       (while (ws/open? socket)
                                         (ws/ping socket)
@@ -148,7 +147,7 @@
         :on-pong (fn [_socket _buffer]
                    (println (:remote-addr request) "pong")
                    (let [current-time (System/currentTimeMillis)]
-                     (swap! users assoc-in [user-id :last-ping] current-time)))
+                     (swap! state assoc-in [:users user-id :last-ping] current-time)))
         :on-message #(on-message %1 %2 user-id)}})
         ;:on-close (fn [_socket _code _reason]
         ;            (println (:remote-addr request) "disconnected")
@@ -172,11 +171,10 @@
 
 (defn leave-room-handler [request]
   (let [player-id (get-in request [:cookies "id" :value])]
-    (linearize! #(do
-                   (leave-room! player-id)
+    (linearize! #(let [state' (swap! state (fn [state] (leave-room state player-id)))]
                    ;; FIXME this should be more granular to the specific room
-                   (doseq [room-id (keys @rooms)]
-                     (broadcast-update! room-id))))
+                   (doseq [room-id (keys (:rooms state'))]
+                     (broadcast-update! state' room-id))))
     {:status 200
      :headers {"vary" "hx-request"
                "cache-control" "no-store"
@@ -189,19 +187,18 @@
     [:get "/index.css"] (file-rsp "resources/index.css")
     [:post "/"] {:status 200 :headers {"vary" "hx-request" "cache-control" "no-store"} :body "post"}
     [:get "/room"] (let [id (get-in request [:cookies "id"])
-                         cookie {:cookies {"id"
-                                           {:value (str (random-uuid))
-                                            :secure true
-                                            :http-only true
-                                            :same-site :strict
-                                            :max-age 86400
-                                            :path "/"}}}
-                         request' (merge-with merge {:cookies cookie} request)]
+                         cookie {:value (str (random-uuid))
+                                 :secure true
+                                 :http-only true
+                                 :same-site :strict
+                                 :max-age 86400
+                                 :path "/"}
+                         request' (update-in request [:cookies "id"] #(if (nil? %) cookie %))]
                      (merge {:status 200
                              :headers {"vary" "hx-request"
                                        "cache-control" "no-store"}
                              :body (str (room-handler request'))}
-                            (when-not id cookie)))
+                            (when-not id {:cookies {"id" cookie}})))
 
     [:get "/ws"] (ws-handler request)
     [:post "/leave-room"] (leave-room-handler request)
