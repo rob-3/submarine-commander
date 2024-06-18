@@ -56,6 +56,7 @@
 (defonce rooms (atom {}))
 
 (defn room-html [room-id player-id {:keys [admin players]}]
+  {:pre [room-id player-id (not (nil? admin)) players]}
   (let [in-room? (contains? players player-id)
         admin? (= player-id admin)]
     [:div#app.container
@@ -109,16 +110,18 @@
 (defmethod room-handler :htmx [request]
   (let [room-id (:id (query-params request))
         player-id (:value (get (:cookies request) "id"))
-        rooms @rooms]
-    (h/html (room-html room-id player-id (get rooms room-id)))))
+        rooms @rooms
+        room (or (get rooms room-id) {:admin false :players #{}})]
+    (h/html (room-html room-id player-id room))))
 
 (defmethod room-handler :default [request]
   (let [room-id (:id (query-params request))
         player-id (:value (get (:cookies request) "id"))
-        rooms @rooms]
+        rooms @rooms
+        room (or (get rooms room-id) {:admin false :players #{}})]
     (page-skeleton [:div.container
                     [:h1.title "Captain Sonar"]
-                    (room-html room-id player-id (get rooms room-id))])))
+                    (room-html room-id player-id room)])))
 
 (defn on-message [_socket message player-id]
   (let [{event "event" room-id "room"} (json/parse-string message)]
