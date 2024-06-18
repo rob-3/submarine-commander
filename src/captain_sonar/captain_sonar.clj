@@ -95,6 +95,15 @@
 (defn leave-room! [player]
   (swap! rooms #(remove-from-all-rooms % player)))
 
+(defonce users (atom {}))
+
+(defn broadcast-update! [room-id]
+  (let [room (get @rooms room-id)
+        users @users]
+    (doseq [player-id (shuffle (:players room))
+            :let [socket (get-in users [player-id :socket])]]
+      (ws/send socket (html (room-html room-id player-id room))))))
+
 (ns-unmap *ns* 'room-handler)
 (defmulti room-handler request-type)
 (defmethod room-handler :htmx [request]
@@ -111,13 +120,13 @@
                     [:h1.title "Captain Sonar"]
                     (room-html room-id player-id (get rooms room-id))])))
 
-(defonce users (atom {}))
-
 (defn on-message [_socket message player-id]
   (let [{event "event" room-id "room"} (json/parse-string message)]
     (prn message)
     (case event
-      "join-room" (linearize! #(join-room! room-id player-id)))))
+      "join-room" (linearize! #(do
+                                 (join-room! room-id player-id)
+                                 (broadcast-update! room-id))))))
 
 (defn ws-handler [request]
   (if (ws/upgrade-request? request)
@@ -160,7 +169,11 @@
 
 (defn leave-room-handler [request]
   (let [player-id (get-in request [:cookies "id" :value])]
-    (linearize! #(leave-room! player-id))
+    (linearize! #(do
+                   (leave-room! player-id)
+                   ;; FIXME this should be more granular to the specific room
+                   (doseq [room-id (keys @rooms)]
+                     (broadcast-update! room-id))))
     {:status 200
      :headers {"vary" "hx-request"
                "cache-control" "no-store"
@@ -172,15 +185,21 @@
     [:get "/"] (index-handler request)
     [:get "/index.css"] (file-rsp "resources/index.css")
     [:post "/"] {:status 200 :headers {"vary" "hx-request" "cache-control" "no-store"} :body "post"}
-    [:get "/room"] (merge {:status 200 :headers {"vary" "hx-request" "cache-control" "no-store"} :body (str (room-handler request))}
-                          (when-not (get-in request [:cookies "id"])
-                            {:cookies {"id"
-                                       {:value (str (random-uuid))
-                                        :secure true
-                                        :http-only true
-                                        :same-site :strict
-                                        :max-age 86400
-                                        :path "/"}}}))
+    [:get "/room"] (let [id (get-in request [:cookies "id"])
+                         cookie {:cookies {"id"
+                                           {:value (str (random-uuid))
+                                            :secure true
+                                            :http-only true
+                                            :same-site :strict
+                                            :max-age 86400
+                                            :path "/"}}}
+                         request' (merge-with merge {:cookies cookie} request)]
+                     (merge {:status 200
+                             :headers {"vary" "hx-request"
+                                       "cache-control" "no-store"}
+                             :body (str (room-handler request'))}
+                            (when-not id cookie)))
+
     [:get "/ws"] (ws-handler request)
     [:post "/leave-room"] (leave-room-handler request)
     {:status 404 :headers {"vary" "hx-request" "cache-control" "no-store"} :body (html [:h1 "404 Not Found"])}))
