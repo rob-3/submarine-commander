@@ -19,7 +19,7 @@ docker build -t captain-sonar .
 Run the container.
 
 ```bash
-docker run -v .:/code/ -p12345:12345 -p3000:3000 -i captain-sonar:latest devbox run clojure -M:nrepl
+docker run -v .:/code/ -p12345:12345 -p3000:3000 -i captain-sonar:latest devbox run clojure -M:nrepl-docker
 ```
 
 This will start up a Clojure [nrepl](https://github.com/nrepl/nrepl), from which you can start the application. Type `(-main)` into the REPL and press enter.
