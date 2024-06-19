@@ -59,7 +59,10 @@
   {:pre [room-id player-id (not (nil? admin)) players]}
   (let [in-room? (contains? players player-id)
         admin? (= player-id admin)]
-    [:div#app.container
+    [:div#app.container {:ws-send ""
+                         :hx-vals (json/generate-string {"event" "join-room-spec"
+                                                         "room" room-id})
+                         :hx-trigger "load delay:1ms"}
      (when admin? [:div "You are the admin. (" player-id ")"])
      (for [player players]
        (if (= player player-id)
@@ -72,11 +75,11 @@
         [:input {:type "text" :name "username" :required ""}]
         [:button {:type "submit" :name "event" :value "join-room"} "Join room"]])]))
 
-(defn add-to-room [state room player]
-  {:pre [state room player]}
+(defn add-to-room [state room player role]
+  {:pre [state room player (contains? #{:players :spectators} role)]}
   (-> state
-      (update-in [:rooms room] (fnil #(update % :players conj player)
-                                     {:admin player :players #{player}}))
+      (update-in [:rooms room] (fnil #(update % role conj player)
+                                     (hash-map :admin player :players #{} :spectators #{} role #{player})))
       (assoc-in [:users player :room] room)))
 
 (defn remove-from-all-rooms [state player-id]
@@ -94,20 +97,20 @@
       state)))
 
 (comment
-  (add-to-room {:rooms {"room1" {:admin "p" :players #{"p"}}} :users {}} "room1" "p2")
+  (add-to-room {:rooms {"room1" {:admin "p" :players #{"p"}}} :users {}} "room1" "p2" :players)
   (remove-from-all-rooms {:rooms {"room1" {:admin "p" :players #{"p"}}} :users {"p" {:room "room1"}}} "p"))
 
 ;; FIXME these are terrible names
 (defonce c (a/chan (a/sliding-buffer 100)))
 (defn linearize! [f]
-  (>!! c f))
+  (assert (>!! c f) "put should succeed"))
 
-(defn join-room [state room player]
-  {:pre [state room player]
+(defn join-room [state room player role]
+  {:pre [state room player (contains? #{:players :spectators} role)]
    :post [(= (get-in state [:rooms :rooms]) nil)]}
   (-> state
       (remove-from-all-rooms player)
-      (add-to-room room player)))
+      (add-to-room room player role)))
 
 (defn leave-room [rooms player]
   (remove-from-all-rooms rooms player))
@@ -143,8 +146,10 @@
   (let [{event "event" room-id "room"} (json/parse-string message)]
     (prn message)
     (case event
-      "join-room" (linearize! (fn [] (let [state' (swap! state #(join-room % room-id player-id))]
-                                       (broadcast-update! state' room-id)))))))
+      "join-room" (linearize! (fn [] (let [state' (swap! state #(join-room % room-id player-id :players))]
+                                       (broadcast-update! state' room-id))))
+      "join-room-spec" (linearize! (fn [] (let [state' (swap! state #(join-room % room-id player-id :spectators))]
+                                            (broadcast-update! state' room-id)))))))
 
 (defn ws-handler [request]
   (if (ws/upgrade-request? request)
@@ -221,13 +226,13 @@
 
 (defn user-id-middleware [handler]
   (fn [request]
-    (let [id (get-in request [:cookies "id"])]
+    (let [id (get-in request [:cookies "id" :value])]
       (if id
         (handler request)
         (let [cookie (make-id-cookie)
-              request' (update-in request [:cookies "id"] cookie)
+              request' (assoc-in request [:cookies "id"] cookie)
               response (handler request')]
-          (update-in response [:cookies "id"] cookie))))))
+          (assoc-in response [:cookies "id"] cookie))))))
 
 (defn -main
   "Start here!"
@@ -235,16 +240,16 @@
   (a/thread
     (loop []
       (let [f (<!! c)]
-        (when (not= f :close)
-          (try (f)
-               (catch Exception e (str "caught: " (.getMessage e))))
-          (recur)))))
+        (try (f)
+             (catch Exception e (str "caught: " (.getMessage e))))
+        (recur))))
   (jetty/run-jetty (middleware/wrap-cookies (user-id-middleware #(app %))) {:port 3000 :join? false}))
 
 (comment
   (do
     (.stop server)
-    (>!! c :close)
+    (a/close! c)
+    (def c (a/chan (a/sliding-buffer 100)))
     (reset! state {:rooms {} :users {}})
     (def server (-main))))
 
