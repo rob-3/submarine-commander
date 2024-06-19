@@ -72,24 +72,40 @@
         [:input {:type "text" :name "username" :required ""}]
         [:button {:type "submit" :name "event" :value "join-room"} "Join room"]])]))
 
-(defn add-to-room [old room player] (update old room (fnil #(update % :players conj player)
-                                                           {:admin player :players #{player}})))
+(defn add-to-room [state room player]
+  {:pre [state room player]}
+  (-> state
+      (update-in [:rooms room] (fnil #(update % :players conj player)
+                                     {:admin player :players #{player}}))
+      (assoc-in [:users player :room] room)))
 
-(defn remove-from-all-rooms [rooms player]
-  (reduce (fn [acc [room-id {:keys [admin players]}]]
-            (let [players' (disj players player)
-                  admin' (if (= player admin) (first players') admin)]
-              (if admin' (assoc acc room-id {:admin admin' :players players'}) acc)))
-          {}
-          rooms))
+(defn remove-from-all-rooms [state player-id]
+  (let [old-room (get-in state [:users player-id :room])]
+    (if old-room
+      (-> state
+          (update-in [:users player-id] dissoc :room)
+          (update :rooms (fn [rooms]
+                           (let [{:keys [admin players]} (get rooms old-room)
+                                 players' (disj players player-id)
+                                 admin' (if (= admin player-id) (first (shuffle players')) admin)]
+                             (if (nil? admin')
+                               (dissoc rooms old-room)
+                               (assoc rooms old-room {:admin admin' :players players'}))))))
+      state)))
+
+(comment
+  (add-to-room {:rooms {"room1" {:admin "p" :players #{"p"}}} :users {}} "room1" "p2")
+  (remove-from-all-rooms {:rooms {"room1" {:admin "p" :players #{"p"}}} :users {"p" {:room "room1"}}} "p"))
 
 ;; FIXME these are terrible names
 (defonce c (a/chan (a/sliding-buffer 100)))
 (defn linearize! [f]
   (>!! c f))
 
-(defn join-room [rooms room player]
-  (-> rooms
+(defn join-room [state room player]
+  {:pre [state room player]
+   :post [(= (get-in state [:rooms :rooms]) nil)]}
+  (-> state
       (remove-from-all-rooms player)
       (add-to-room room player)))
 
@@ -97,7 +113,9 @@
   (remove-from-all-rooms rooms player))
 
 (defn broadcast-update! [{:keys [rooms users]} room-id]
+  {:pre [rooms users room-id]}
   (let [room (get rooms room-id)]
+    (assert room)
     (doseq [player-id (shuffle (:players room))
             :let [socket (get-in users [player-id :socket])]]
       (ws/send socket (html (room-html room-id player-id room))))))
@@ -125,14 +143,13 @@
   (let [{event "event" room-id "room"} (json/parse-string message)]
     (prn message)
     (case event
-      "join-room" (linearize! #(let [state' (swap! state (fn [{:keys [rooms users]}]
-                                                           (let [rooms' (join-room rooms room-id player-id)]
-                                                             {:rooms rooms' :users users})))]
-                                 (broadcast-update! state' room-id))))))
+      "join-room" (linearize! (fn [] (let [state' (swap! state #(join-room % room-id player-id))]
+                                       (broadcast-update! state' room-id)))))))
 
 (defn ws-handler [request]
   (if (ws/upgrade-request? request)
-    (let [user-id (or (get-in request [:cookies "id" :value]) "")]
+    (let [user-id (get-in request [:cookies "id" :value])]
+      (assert user-id)
       {::ws/listener
        {:on-open (fn [socket]
                    (println (:remote-addr request) "connected")
@@ -186,23 +203,31 @@
     [:get "/"] (index-handler request)
     [:get "/index.css"] (file-rsp "resources/index.css")
     [:post "/"] {:status 200 :headers {"vary" "hx-request" "cache-control" "no-store"} :body "post"}
-    [:get "/room"] (let [id (get-in request [:cookies "id"])
-                         cookie {:value (str (random-uuid))
-                                 :secure true
-                                 :http-only true
-                                 :same-site :strict
-                                 :max-age 86400
-                                 :path "/"}
-                         request' (update-in request [:cookies "id"] #(if (nil? %) cookie %))]
-                     (merge {:status 200
-                             :headers {"vary" "hx-request"
-                                       "cache-control" "no-store"}
-                             :body (str (room-handler request'))}
-                            (when-not id {:cookies {"id" cookie}})))
-
+    [:get "/room"] {:status 200
+                    :headers {"vary" "hx-request"
+                              "cache-control" "no-store"}
+                    :body (str (room-handler request))}
     [:get "/ws"] (ws-handler request)
     [:post "/leave-room"] (leave-room-handler request)
     {:status 404 :headers {"vary" "hx-request" "cache-control" "no-store"} :body (html [:h1 "404 Not Found"])}))
+
+(defn make-id-cookie []
+  {:value (str (random-uuid))
+   :secure true
+   :http-only true
+   :same-site :strict
+   :max-age 86400
+   :path "/"})
+
+(defn user-id-middleware [handler]
+  (fn [request]
+    (let [id (get-in request [:cookies "id"])]
+      (if id
+        (handler request)
+        (let [cookie (make-id-cookie)
+              request' (update-in request [:cookies "id"] cookie)
+              response (handler request')]
+          (update-in response [:cookies "id"] cookie))))))
 
 (defn -main
   "Start here!"
@@ -210,9 +235,18 @@
   (a/thread
     (loop []
       (let [f (<!! c)]
-        (f)
-        (recur))))
-  (jetty/run-jetty (middleware/wrap-cookies #(app %)) {:port 3000 :join? false}))
+        (when (not= f :close)
+          (try (f)
+               (catch Exception e (str "caught: " (.getMessage e))))
+          (recur)))))
+  (jetty/run-jetty (middleware/wrap-cookies (user-id-middleware #(app %))) {:port 3000 :join? false}))
+
+(comment
+  (do
+    (.stop server)
+    (>!! c :close)
+    (reset! state {:rooms {} :users {}})
+    (def server (-main))))
 
 (comment
   (-main)
