@@ -55,25 +55,30 @@
 ;; That way we can prevent people from joining multiple rooms by mistake.
 (defonce state (atom {:rooms {} :users {}}))
 
-(defn room-html [room-id player-id {:keys [admin players]}]
-  {:pre [room-id player-id (not (nil? admin)) players]}
-  (let [in-room? (contains? players player-id)
+(defn room-html [room-id player-id {:keys [admin players spectators]}]
+  {:pre [room-id player-id (not (nil? admin)) players spectators]}
+  (let [playing? (contains? players player-id)
+        spectating? (contains? spectators player-id)
+        in-room? (or playing? spectating?)
         admin? (= player-id admin)]
-    [:div#app.container {:ws-send ""
-                         :hx-vals (json/generate-string {"event" "join-room-spec"
-                                                         "room" room-id})
-                         :hx-trigger "load delay:1ms"}
+    [:div#app.container (when-not in-room? {:ws-send ""
+                                            :hx-vals (json/generate-string {"event" "join-room-spec"
+                                                                            "room" room-id})
+                                            :hx-trigger "load delay:1ms"})
      (when admin? [:div "You are the admin. (" player-id ")"])
      (for [player players]
        (if (= player player-id)
          (when-not admin? [:div (str "You (" player ") are in the room.")])
          [:div (str "Player " player " is in the room.")]))
-     (if in-room?
-       [:button.button {:hx-push-url "true" :hx-post "/leave-room"} "Leave Room"]
-       [:form {:ws-send "" :id "join-form"}
-        [:input {:type "hidden" :name "room" :value room-id}]
-        [:input {:type "text" :name "username" :required ""}]
-        [:button {:type "submit" :name "event" :value "join-room"} "Join room"]])]))
+     (for [spec spectators]
+       (if (= spec player-id)
+         (when-not admin? [:div (str "You (" spec ") are watching.")])
+         [:div (str spec " is watching.")]))
+     (when in-room? [:button.button {:hx-push-url "true" :hx-post "/leave-room"} "Leave Room"])
+     (when spectating? [:form {:ws-send "" :id "join-form"}
+                        [:input {:type "hidden" :name "room" :value room-id}]
+                        [:input {:type "text" :name "username" :required ""}]
+                        [:button.button {:type "submit" :name "event" :value "join-room"} "Join room"]])]))
 
 (defn add-to-room [state room player role]
   {:pre [state room player (contains? #{:players :spectators} role)]}
@@ -88,9 +93,13 @@
       (-> state
           (update-in [:users player-id] dissoc :room)
           (update :rooms (fn [rooms]
-                           (let [{:keys [admin players]} (get rooms old-room)
+                           (let [{:keys [admin players spectators]} (get rooms old-room)
                                  players' (disj players player-id)
-                                 admin' (if (= admin player-id) (first (shuffle players')) admin)]
+                                 spectators' (disj spectators player-id)
+                                 admin' (if (= admin player-id)
+                                          (or (first (shuffle players'))
+                                              (first (shuffle spectators')))
+                                          admin)]
                              (if (nil? admin')
                                (dissoc rooms old-room)
                                (assoc rooms old-room {:admin admin' :players players'}))))))
@@ -119,7 +128,7 @@
   {:pre [rooms users room-id]}
   (let [room (get rooms room-id)]
     (assert room)
-    (doseq [player-id (shuffle (:players room))
+    (doseq [player-id (shuffle (concat (:players room) (:spectators room)))
             :let [socket (get-in users [player-id :socket])]]
       (ws/send socket (html (room-html room-id player-id room))))))
 
@@ -128,8 +137,9 @@
 (defmethod room-handler :htmx [request]
   (let [room-id (:id (query-params request))
         player-id (:value (get (:cookies request) "id"))
+        _ (assert (not (nil? player-id)) "player-id is nil!")
         rooms (:rooms @state)
-        room (or (get rooms room-id) {:admin false :players #{}})]
+        room (or (get rooms room-id) {:admin false :players #{} :spectators #{}})]
     (h/html (room-html room-id player-id room))))
 
 (defmethod room-handler :default [request]
@@ -137,7 +147,7 @@
         player-id (:value (get (:cookies request) "id"))
         _ (assert (not (nil? player-id)) "player-id is nil!")
         rooms (:rooms @state)
-        room (or (get rooms room-id) {:admin false :players #{}})]
+        room (or (get rooms room-id) {:admin false :players #{} :spectators #{}})]
     (page-skeleton [:div.container
                     [:h1.title "Captain Sonar"]
                     (room-html room-id player-id room)])))
