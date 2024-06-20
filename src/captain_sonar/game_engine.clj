@@ -1,7 +1,7 @@
 (ns captain-sonar.game-engine)
 
 (def state
-  {:red {:location [1 1]
+  {:red {:trail [[1 1]]
          :health 4
          :systems {:torpedo 0
                    :mine 0
@@ -14,7 +14,7 @@
                       :south #{:green :yellow1 :red1 :red2 :reactor :yellow2}
                       :east #{:green1 :yellow :red :reactor :green2 :reactor2}}
          :surfaced false}
-   :blue {:location [15 15]
+   :blue {:trail [[15 15]]
           :health 4
           :systems {:torpedo 0
                     :mine 0

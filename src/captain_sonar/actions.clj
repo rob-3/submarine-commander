@@ -1,19 +1,19 @@
-(ns captain-sonar.actions 
+(ns captain-sonar.actions
   (:require
    [captain-sonar.maps :as maps]))
 
-(defn make-move [move [x y] island-map]
-  (let [[x' y'] (case move
+(defn make-move [move trail island-map]
+  (let [[x y] (last trail)
+        [x' y'] (case move
                   :north [x (dec y)]
                   :south [x (inc y)]
                   :east [(inc x) y]
                   :west [(dec x) y])]
-    (if (contains? island-map [x' y'])
-      :illegal-island-move
-      (if (and (>= 15 x' 1)
-               (>= 15 y' 1))
-        [x' y']
-        :illegal-offmap-move))))
+    (cond
+      (contains? island-map [x' y']) :illegal-island-move
+      (not (and (>= 15 x' 1) (>= 15 y' 1))) :illegal-offmap-move
+      (some #{[x' y']} trail) :illegal-trail-cross
+      :else (conj trail [x' y']))))
 
 (def valid-breakdowns
   {:west #{:red :yellow :green1 :green2 :reactor1 :reactor2}
@@ -52,20 +52,21 @@
       :else :illegal-system-charge)))
 
 (defn attempt-move
-  [{:keys [location systems breakdowns] :as state} direction system-to-charge breakdown]
+  [{:keys [trail systems breakdowns] :as state} direction system-to-charge breakdown]
   ;; FIXME pass map as parameter
-  (let [location' (make-move direction location maps/alpha)
+  (let [trail' (make-move direction trail maps/alpha)
         systems' (charge-system system-to-charge systems)
         breakdowns' (breakdown-system breakdown direction breakdowns)]
     (cond
-      (= location' :illegal-island-move) :illegal-island-move
-      (= location' :illegal-offmap-move) :illegal-offmap-move
+      (= trail' :illegal-island-move) :illegal-island-move
+      (= trail' :illegal-offmap-move) :illegal-offmap-move
+      (= trail' :illegal-trail-cross) :illegal-trail-cross
       (= systems' :illegal-system-charge) :illegal-system-charge
       (= systems' :illegal-noncharge) :illegal-noncharge
       (= breakdowns' :illegal-breakdown-value) :illegal-breakdown-value
       (= breakdowns' :illegal-duplicate-selection) :illegal-duplicate-selection
       :else (-> state
-                (assoc :location location')
+                (assoc :trail trail')
                 (assoc :systems systems')
                 (assoc :breakdowns breakdowns')))))
 
@@ -76,7 +77,7 @@
 
 (comment
   ;; FIXME these are terrible inline (comment) tests; we'll make these proper soon
-  (def x {:location [2 5]
+  (def x {:trail [[2 5]]
           :health 4
           :systems {:torpedo 0
                     :mine 0
