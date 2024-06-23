@@ -1,8 +1,8 @@
 (ns captain-sonar.captain-sonar-test
   (:require
-   [captain-sonar.systems :refer [drone-online? green-broken? mine-online?
-                                  red-broken? silence-online?
-                                  sonar-online? torpedo-online?
+   [captain-sonar.systems :refer [drone-charged? green-broken? mine-charged?
+                                  red-broken? silence-charged?
+                                  sonar-charged? torpedo-charged?
                                   yellow-broken?]]
    [clojure.test :refer [deftest is run-tests testing]]))
 
@@ -18,17 +18,17 @@
 
 (deftest system-online-functions
   (testing "Systems are offline due to charge"
-    (is (not (torpedo-online? {:systems {:torpedo 2} :breakdowns {:west #{} :north #{} :south #{} :east #{}}})))
-    (is (not (mine-online? {:systems {:mine 2} :breakdowns {:west #{} :north #{} :south #{} :east #{}}})))
-    (is (not (drone-online? {:systems {:drone 3} :breakdowns {:west #{} :north #{} :south #{} :east #{}}})))
-    (is (not (sonar-online? {:systems {:sonar 2} :breakdowns {:west #{} :north #{} :south #{} :east #{}}})))
-    (is (not (silence-online? {:systems {:silence 5} :breakdowns {:west #{} :north #{} :south #{} :east #{}}}))))
-  (testing "Systems are online"
-    (is (torpedo-online? {:systems {:torpedo 3} :breakdowns {:west #{} :north #{} :south #{} :east #{}}}))
-    (is (mine-online? {:systems {:mine 3} :breakdowns {:west #{} :north #{} :south #{} :east #{}}}))
-    (is (drone-online? {:systems {:drone 4} :breakdowns {:west #{} :north #{} :south #{} :east #{}}}))
-    (is (sonar-online? {:systems {:sonar 3} :breakdowns {:west #{} :north #{} :south #{} :east #{}}}))
-    (is (silence-online? {:systems {:silence 6} :breakdowns {:west #{} :north #{} :south #{} :east #{}}}))))
+    (is (not (torpedo-charged? {:systems {:torpedo 2}})))
+    (is (not (mine-charged? {:systems {:mine 2}})))
+    (is (not (drone-charged? {:systems {:drone 3}})))
+    (is (not (sonar-charged? {:systems {:sonar 2}})))
+    (is (not (silence-charged? {:systems {:silence 5}}))))
+  (testing "Systems are charged"
+    (is (torpedo-charged? {:systems {:torpedo 3}}))
+    (is (mine-charged? {:systems {:mine 3}}))
+    (is (drone-charged? {:systems {:drone 4}}))
+    (is (sonar-charged? {:systems {:sonar 3}}))
+    (is (silence-charged? {:systems {:silence 6}}))))
 
 (comment
   (run-tests 'captain-sonar.captain-sonar-test))
