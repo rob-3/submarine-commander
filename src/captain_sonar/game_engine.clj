@@ -13,7 +13,8 @@
                       :north #{:yellow1 :yellow2 :red1 :green1 :red2 :reactor}
                       :south #{:green :yellow1 :red1 :red2 :reactor :yellow2}
                       :east #{:green1 :yellow :red :reactor :green2 :reactor2}}
-         :surfaced false}
+         :surfaced false
+         :mines #{}}
    :blue {:trail [[15 15]]
           :health 4
           :systems {:torpedo 0
@@ -25,4 +26,5 @@
                        :north #{:yellow1 :yellow2 :red1 :green1 :red2 :reactor}
                        :south #{:green :yellow1 :red1 :red2 :reactor :yellow2}
                        :east #{:green1 :yellow :red :reactor :green2 :reactor2}}
-          :surfaced false}})
+          :surfaced false
+          :mines #{}}})

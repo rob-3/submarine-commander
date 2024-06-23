@@ -1,6 +1,7 @@
 (ns captain-sonar.actions
   (:require
-   [captain-sonar.maps :as maps]))
+   [captain-sonar.maps :as maps]
+   [captain-sonar.systems :refer [mine-charged? red-broken?]]))
 
 (defn make-move [move trail island-map]
   (let [[x y] (last trail)
@@ -75,6 +76,30 @@
     :illegal-redundant-surface
     (assoc state :surfaced true)))
 
+(defn adjacent? [[x y] [x' y']]
+  (<= (+ (abs (- x x')) (abs (- y y'))) 1))
+
+;; Rulings:
+;; * You _can_ lay a mine diagonally.
+;; * You cannot lay a mine on your path or on top another mine.
+;; * You cannot move through your own mine with or without silence.
+(defn lay-mine [{:keys [mines trail breakdowns systems] :as state} mine-location]
+  (let [charged? (mine-charged? systems)
+        weapons-down? (red-broken? breakdowns)
+        sub-location (last trail)
+        in-trail? (some #{mine-location} trail)
+        adj? (adjacent? sub-location mine-location)
+        already-laid? (contains? mines mine-location)]
+    (cond
+      (not charged?) :illegal-mine-uncharged
+      weapons-down? :illegal-weapons-are-broken
+      already-laid? :illegal-mine-already-laid
+      in-trail? :illegal-mine-in-trail
+      (not adj?) :illegal-mine-not-adj
+      :else (-> state
+                (update :mines conj mine-location)
+                (assoc-in [:systems :mine] 0)))))
+
 (comment
   ;; FIXME these are terrible inline (comment) tests; we'll make these proper soon
   (def x {:trail [[2 5]]
@@ -89,6 +114,8 @@
                        :north #{:yellow1 :yellow2 :red1 :red2 :reactor}
                        :south #{:green :yellow1 :red1 :red2 :reactor :yellow2}
                        :east #{:green1 :yellow :red :reactor :green2 :reactor2}}
-          :surfaced false})
+          :surfaced false
+          :mines #{}})
   (attempt-move x :north :torpedo :green1)
-  (surface x))
+  (surface x)
+  (lay-mine x [2 6]))
