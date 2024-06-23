@@ -100,7 +100,40 @@
                 (update :mines conj mine-location)
                 (assoc-in [:systems :mine] 0)))))
 
+(defn explosion-wrt
+  "Explodes \"with regard to\" a submarine."
+  [sub-state explosion-location]
+  (let [target-location (last (:trail sub-state))
+        direct-hit? (= explosion-location target-location)
+        hit? (adjacent? explosion-location target-location)]
+    (cond-> sub-state
+      direct-hit? (update :health dec)
+      hit? (update :health dec))))
+
+(defn explosion-at
+  "Explode at a location, damaging all subs and triggering any other state 
+   changes due to the explosion."
+  [game-state location]
+  (reduce (fn [game-state team-color]
+            (update game-state team-color explosion-wrt location))
+          game-state
+          [:red :blue]))
+
+(defn detonate-mine [game-state team-detonating mine-location]
+  {:pre [(#{:red :blue} team-detonating)]}
+  (let [breakdowns (get-in game-state [team-detonating :breakdowns])
+        weapons-down? (red-broken? breakdowns)
+        mines (get-in game-state [team-detonating :mines])
+        mine-exists? (contains? mines mine-location)]
+    (cond
+      weapons-down? :illegal-weapons-are-broken
+      (not mine-exists?) :illegal-no-such-mine
+      :else (-> game-state
+                (update-in [team-detonating :mines] disj mine-location)
+                (explosion-at mine-location)))))
+
 (comment
+  (require '[captain-sonar.game-engine :as game-engine])
   ;; FIXME these are terrible inline (comment) tests; we'll make these proper soon
   (def x {:trail [[2 5]]
           :health 4
@@ -118,4 +151,7 @@
           :mines #{}})
   (attempt-move x :north :torpedo :green1)
   (surface x)
-  (lay-mine x [2 6]))
+  (lay-mine x [2 6])
+  (explosion-wrt x [2 6])
+  (explosion-at game-engine/state [1 2])
+  (detonate-mine game-engine/state :red [1 2]))
