@@ -1,7 +1,7 @@
 (ns captain-sonar.actions
   (:require
    [captain-sonar.maps :as maps]
-   [captain-sonar.systems :refer [mine-charged? red-broken?]]))
+   [captain-sonar.systems :refer [mine-charged? red-broken? torpedo-charged?]]))
 
 (defn make-move [move trail island-map]
   (let [[x y] (last trail)
@@ -76,8 +76,11 @@
     :illegal-redundant-surface
     (assoc state :surfaced true)))
 
-(defn adjacent? [[x y] [x' y']]
-  (<= (+ (abs (- x x')) (abs (- y y'))) 1))
+(defn within-n? [[x y] [x' y'] n]
+  (<= (+ (abs (- x x')) (abs (- y y'))) n))
+
+(defn adjacent? [location1 location2]
+  (within-n? location1 location2 1))
 
 ;; Rulings:
 ;; * You _can_ lay a mine diagonally.
@@ -131,6 +134,22 @@
       :else (-> game-state
                 (update-in [team-detonating :mines] disj mine-location)
                 (explosion-at mine-location)))))
+
+(defn fire-torpedo [game-state team-firing torpedo-location]
+  {:pre [(#{:red :blue} team-firing)]}
+  (let [team-firing-state (get game-state team-firing)
+        charged? (torpedo-charged? (:systems team-firing-state))
+        breakdowns (:breakdowns team-firing-state)
+        weapons-down? (red-broken? breakdowns)
+        firing-team-location (last (:trail team-firing-state))
+        in-range? (within-n? firing-team-location team-firing 4)]
+    (cond
+      (not charged?) :illegal-torpedo-uncharged
+      weapons-down? :illegal-weapons-are-broken
+      (not in-range?) :illegal-out-of-range
+      :else (-> game-state
+                (assoc-in [team-firing :systems :torpedo] 0)
+                (explosion-at torpedo-location)))))
 
 (comment
   (require '[captain-sonar.game-engine :as game-engine])
