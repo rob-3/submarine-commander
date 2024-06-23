@@ -117,6 +117,9 @@
   "Explode at a location, damaging all subs and triggering any other state 
    changes due to the explosion."
   [game-state location]
+  ;; FIXME this function should also trigger chain reactions
+  ;; Ruling: this doesn't cause the mines to explode, just be removed + notify players
+  ;; This should probably be a configurable option.
   (reduce (fn [game-state team-color]
             (update game-state team-color explosion-wrt location))
           game-state
@@ -135,6 +138,9 @@
                 (update-in [team-detonating :mines] disj mine-location)
                 (explosion-at mine-location)))))
 
+;; Rulings:
+;; * Torpedos cannot move through islands, see official designer ruling at
+;;   https://boardgamegeek.com/thread/1913121/rule-clarification-torpedomissilesmines
 (defn fire-torpedo [game-state team-firing torpedo-location]
   {:pre [(#{:red :blue} team-firing)]}
   (let [team-firing-state (get game-state team-firing)
@@ -142,6 +148,7 @@
         breakdowns (:breakdowns team-firing-state)
         weapons-down? (red-broken? breakdowns)
         firing-team-location (last (:trail team-firing-state))
+        ;; FIXME handle edge cases with firing around islands
         in-range? (within-n? firing-team-location team-firing 4)]
     (cond
       (not charged?) :illegal-torpedo-uncharged
