@@ -1,7 +1,8 @@
 (ns captain-sonar.actions
   (:require
    [captain-sonar.maps :as maps]
-   [captain-sonar.systems :refer [mine-charged? red-broken? torpedo-charged?]]))
+   [captain-sonar.systems :refer [drone-charged? green-broken? mine-charged?
+                                  red-broken? torpedo-charged?]]))
 
 (defn make-move [move trail island-map]
   (let [[x y] (last trail)
@@ -121,21 +122,21 @@
   ;; Ruling: this doesn't cause the mines to explode, just be removed + notify players
   ;; This should probably be a configurable option.
   (reduce (fn [game-state team-color]
-            (update game-state team-color explosion-wrt location))
+            (update-in game-state [:teams team-color] explosion-wrt location))
           game-state
           [:red :blue]))
 
 (defn detonate-mine [game-state team-detonating mine-location]
   {:pre [(#{:red :blue} team-detonating)]}
-  (let [breakdowns (get-in game-state [team-detonating :breakdowns])
+  (let [breakdowns (get-in game-state [:teams team-detonating :breakdowns])
         weapons-down? (red-broken? breakdowns)
-        mines (get-in game-state [team-detonating :mines])
+        mines (get-in game-state [:teams team-detonating :mines])
         mine-exists? (contains? mines mine-location)]
     (cond
       weapons-down? :illegal-weapons-are-broken
       (not mine-exists?) :illegal-no-such-mine
       :else (-> game-state
-                (update-in [team-detonating :mines] disj mine-location)
+                (update-in [:teams team-detonating :mines] disj mine-location)
                 (explosion-at mine-location)))))
 
 ;; Rulings:
@@ -143,7 +144,7 @@
 ;;   https://boardgamegeek.com/thread/1913121/rule-clarification-torpedomissilesmines
 (defn fire-torpedo [game-state team-firing torpedo-location]
   {:pre [(#{:red :blue} team-firing)]}
-  (let [team-firing-state (get game-state team-firing)
+  (let [team-firing-state (get-in game-state [:teams team-firing])
         charged? (torpedo-charged? (:systems team-firing-state))
         breakdowns (:breakdowns team-firing-state)
         weapons-down? (red-broken? breakdowns)
@@ -155,8 +156,36 @@
       weapons-down? :illegal-weapons-are-broken
       (not in-range?) :illegal-out-of-range
       :else (-> game-state
-                (assoc-in [team-firing :systems :torpedo] 0)
+                (assoc-in [:teams team-firing :systems :torpedo] 0)
                 (explosion-at torpedo-location)))))
+
+(defn in-sector? [guessed-sector location]
+  ;; FIXME we're assuming the 15x15 board here
+  (let [sector-width 5
+        sector-height 5
+        sectors-per-row 3
+        [x y] location
+        sector (+ (inc (quot (dec x) sector-width)) 
+                  (* sectors-per-row (quot (dec y) sector-height)))]
+    (= sector guessed-sector)))
+
+(defn use-drone [game-state team-using team-targeted guessed-sector]
+  {:pre [(#{:red :blue} team-using) (#{:red :blue} team-targeted)]}
+  (prn game-state)
+  (let [team-using-state (get-in game-state [:teams team-using])
+        charged? (drone-charged? (:systems team-using-state))
+        breakdowns (:breakdowns team-using-state)
+        drone-down? (green-broken? breakdowns)
+        team-location (last (get-in game-state [:teams team-targeted :trail]))
+        are-they-there? (in-sector? guessed-sector team-location)]
+    (cond
+      (not charged?) :illegal-drone-uncharged
+      drone-down? :illegal-sensors-are-broken
+      :else (-> game-state
+                (assoc-in [:teams team-using :systems :drone] 0)
+                (update :events conj {:type :drone-inform
+                                      :team team-using
+                                      :answer are-they-there?})))))
 
 (comment
   (require '[captain-sonar.game-engine :as game-engine])
@@ -180,4 +209,5 @@
   (lay-mine x [2 6])
   (explosion-wrt x [2 6])
   (explosion-at game-engine/state [1 2])
-  (detonate-mine game-engine/state :red [1 2]))
+  (detonate-mine game-engine/state :red [1 2])
+  (use-drone game-engine/state :red :blue 9))
