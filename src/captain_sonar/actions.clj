@@ -2,20 +2,25 @@
   (:require
    [captain-sonar.maps :as maps]
    [captain-sonar.systems :refer [drone-charged? green-broken? mine-charged?
-                                  red-broken? torpedo-charged?]]))
+                                  red-broken? silence-charged?
+                                  torpedo-charged? yellow-broken?]]))
 
-(defn make-move [move trail island-map]
-  (let [[x y] (last trail)
-        [x' y'] (case move
-                  :north [x (dec y)]
-                  :south [x (inc y)]
-                  :east [(inc x) y]
-                  :west [(dec x) y])]
-    (cond
-      (contains? island-map [x' y']) :illegal-island-move
-      (not (and (>= 15 x' 1) (>= 15 y' 1))) :illegal-offmap-move
-      (some #{[x' y']} trail) :illegal-trail-cross
-      :else (conj trail [x' y']))))
+(defn make-move [trail move island-map distance]
+  {:pre [(#{:north :south :east :west} move)]}
+  (loop [trail trail
+         distance distance]
+    (let [[x y] (last trail)
+          [x' y'] (case move
+                    :north [x (dec y)]
+                    :south [x (inc y)]
+                    :east [(inc x) y]
+                    :west [(dec x) y])]
+      (cond
+        (contains? island-map [x' y']) :illegal-island-move
+        (not (and (>= 15 x' 1) (>= 15 y' 1))) :illegal-offmap-move
+        (some #{[x' y']} trail) :illegal-trail-cross
+        (= distance 0) trail
+        :else (recur (conj trail [x' y']) (dec distance))))))
 
 (def valid-breakdowns
   {:west #{:red :yellow :green1 :green2 :reactor1 :reactor2}
@@ -56,7 +61,7 @@
 (defn attempt-move
   [{:keys [trail systems breakdowns] :as state} direction system-to-charge breakdown]
   ;; FIXME pass map as parameter
-  (let [trail' (make-move direction trail maps/alpha)
+  (let [trail' (make-move trail direction maps/alpha 1)
         systems' (charge-system system-to-charge systems)
         breakdowns' (breakdown-system breakdown direction breakdowns)]
     (cond
@@ -165,7 +170,7 @@
         sector-height 5
         sectors-per-row 3
         [x y] location
-        sector (+ (inc (quot (dec x) sector-width)) 
+        sector (+ (inc (quot (dec x) sector-width))
                   (* sectors-per-row (quot (dec y) sector-height)))]
     (= sector guessed-sector)))
 
@@ -186,6 +191,21 @@
                 (update :events conj {:type :drone-inform
                                       :team team-using
                                       :answer are-they-there?})))))
+
+(defn use-silence [game-state team-moving direction island-map]
+  {:pre [(#{:red :blue} team-moving)
+         (#{:north :south :east :west} direction)]}
+  (let [{:keys [breakdowns systems trail]} (get-in game-state [:teams team-moving])
+        charged? (silence-charged? systems)
+        silence-down? (yellow-broken? breakdowns)
+        trail' (make-move trail direction island-map 4)]
+    (cond
+      (not charged?) :illegal-silence-uncharged
+      silence-down? :illegal-yellow-is-broken
+      (keyword? trail') trail'
+      :else (-> game-state
+                (assoc-in [:teams team-moving :systems :silence] 0)
+                (assoc-in [:teams team-moving :trail] trail')))))
 
 (comment
   (require '[captain-sonar.game-engine :as game-engine])
@@ -210,4 +230,5 @@
   (explosion-wrt x [2 6])
   (explosion-at game-engine/state [1 2])
   (detonate-mine game-engine/state :red [1 2])
-  (use-drone game-engine/state :red :blue 9))
+  (use-drone game-engine/state :red :blue 9)
+  (use-silence game-engine/state :red :north maps/alpha))
