@@ -5,6 +5,9 @@
                                   red-broken? silence-charged?
                                   torpedo-charged? yellow-broken?]]))
 
+(def teams [:team/red :team/blue])
+(defn team? [t] (boolean (#{:team/red :team/blue} t)))
+
 (defn make-move [trail move island-map distance]
   {:pre [(#{:north :south :east :west} move)]}
   (loop [trail trail
@@ -129,10 +132,10 @@
   (reduce (fn [game-state team-color]
             (update-in game-state [:teams team-color] explosion-wrt location))
           game-state
-          [:red :blue]))
+          teams))
 
 (defn detonate-mine [game-state team-detonating mine-location]
-  {:pre [(#{:red :blue} team-detonating)]}
+  {:pre [(team? team-detonating)]}
   (let [breakdowns (get-in game-state [:teams team-detonating :breakdowns])
         weapons-down? (red-broken? breakdowns)
         mines (get-in game-state [:teams team-detonating :mines])
@@ -148,7 +151,7 @@
 ;; * Torpedos cannot move through islands, see official designer ruling at
 ;;   https://boardgamegeek.com/thread/1913121/rule-clarification-torpedomissilesmines
 (defn fire-torpedo [game-state team-firing torpedo-location]
-  {:pre [(#{:red :blue} team-firing)]}
+  {:pre [(team? team-firing)]}
   (let [team-firing-state (get-in game-state [:teams team-firing])
         charged? (torpedo-charged? (:systems team-firing-state))
         breakdowns (:breakdowns team-firing-state)
@@ -175,7 +178,7 @@
     (= sector guessed-sector)))
 
 (defn use-drone [game-state team-using team-targeted guessed-sector]
-  {:pre [(#{:red :blue} team-using) (#{:red :blue} team-targeted)]}
+  {:pre [(team? team-using) (team? team-targeted)]}
   (prn game-state)
   (let [team-using-state (get-in game-state [:teams team-using])
         charged? (drone-charged? (:systems team-using-state))
@@ -193,7 +196,7 @@
                                       :answer are-they-there?})))))
 
 (defn use-silence [game-state team-moving direction island-map]
-  {:pre [(#{:red :blue} team-moving)
+  {:pre [(team? team-moving)
          (#{:north :south :east :west} direction)]}
   (let [{:keys [breakdowns systems trail]} (get-in game-state [:teams team-moving])
         charged? (silence-charged? systems)
@@ -229,6 +232,6 @@
   (lay-mine x [2 6])
   (explosion-wrt x [2 6])
   (explosion-at game-engine/state [1 2])
-  (detonate-mine game-engine/state :red [1 2])
-  (use-drone game-engine/state :red :blue 9)
-  (use-silence game-engine/state :red :north maps/alpha))
+  (detonate-mine game-engine/state :team/red [1 2])
+  (use-drone game-engine/state :team/red :team/blue 9)
+  (use-silence game-engine/state :team/red :north maps/alpha))
