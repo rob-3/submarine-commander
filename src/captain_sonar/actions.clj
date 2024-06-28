@@ -179,7 +179,6 @@
 
 (defn use-drone [game-state team-using team-targeted guessed-sector]
   {:pre [(team? team-using) (team? team-targeted)]}
-  (prn game-state)
   (let [team-using-state (get-in game-state [:teams team-using])
         charged? (drone-charged? (:systems team-using-state))
         breakdowns (:breakdowns team-using-state)
