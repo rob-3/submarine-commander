@@ -2,7 +2,7 @@
   (:require
    [captain-sonar.maps :as maps]
    [captain-sonar.systems :refer [drone-charged? green-broken? mine-charged?
-                                  red-broken? silence-charged?
+                                  red-broken? silence-charged? sonar-charged?
                                   torpedo-charged? yellow-broken?]]))
 
 (def teams [:team/red :team/blue])
@@ -166,6 +166,21 @@
       :else (-> game-state
                 (assoc-in [:teams team-firing :systems :torpedo] 0)
                 (explosion-at torpedo-location)))))
+
+(defn use-sonar [game-state team-using team-targeted]
+  {:pre [(team? team-using) (team? team-targeted)]}
+  (let [team-using-state (get-in game-state [:teams team-using]) 
+        charged? (sonar-charged? (:systems team-using-state))
+        breakdowns (:breakdowns team-using-state)
+        sonar-down? (green-broken? breakdowns)]
+    (cond
+      (not charged?) :illegal-sonar-uncharged
+      sonar-down? :illegal-sensors-are-broken
+      :else (-> game-state
+                (assoc-in [:teams team-using :systems :sonar] 0)
+                (update :events conj {:type :sonar
+                                      :from team-using
+                                      :to team-targeted})))))
 
 (defn in-sector? [guessed-sector location]
   ;; FIXME we're assuming the 15x15 board here
