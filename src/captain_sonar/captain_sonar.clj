@@ -55,36 +55,26 @@
 ;; That way we can prevent people from joining multiple rooms by mistake.
 (defonce state (atom {:rooms {} :users {}}))
 
-(defn room-html [room-id player-id {:keys [admin players spectators]}]
-  {:pre [room-id player-id (not (nil? admin)) players spectators]}
+(defn room-html [room-id player-id {:keys [admin players]}]
+  {:pre [room-id player-id (not (nil? admin)) players]}
   (let [playing? (contains? players player-id)
-        spectating? (contains? spectators player-id)
-        in-room? (or playing? spectating?)
         admin? (= player-id admin)]
-    [:div#app.container (when-not in-room? {:ws-send ""
-                                            :hx-vals (json/generate-string {"event" "join-room-spec"
-                                                                            "room" room-id})
-                                            :hx-trigger "load delay:1ms"})
+    [:div#app.container (when (not playing?) {:ws-send ""
+                                              :hx-vals (json/generate-string {"event" "join-room"
+                                                                              "room" room-id})
+                                              :hx-trigger "load delay:1ms"})
      (when admin? [:div "You are the admin. (" player-id ")"])
      (for [player players]
        (if (= player player-id)
          (when-not admin? [:div (str "You (" player ") are in the room.")])
          [:div (str "Player " player " is in the room.")]))
-     (for [spec spectators]
-       (if (= spec player-id)
-         (when-not admin? [:div (str "You (" spec ") are watching.")])
-         [:div (str spec " is watching.")]))
-     (when in-room? [:button.button {:hx-push-url "true" :hx-post "/leave-room"} "Leave Room"])
-     (when spectating? [:form {:ws-send "" :id "join-form"}
-                        [:input {:type "hidden" :name "room" :value room-id}]
-                        [:input {:type "text" :name "username" :required ""}]
-                        [:button.button {:type "submit" :name "event" :value "join-room"} "Join room"]])]))
+     (when playing? [:button.button {:hx-push-url "true" :hx-post "/leave-room"} "Leave Room"])]))
 
-(defn add-to-room [state room player role]
-  {:pre [state room player (contains? #{:players :spectators} role)]}
+(defn add-to-room [state room player]
+  {:pre [state room player]}
   (-> state
-      (update-in [:rooms room] (fnil #(update % role conj player)
-                                     (hash-map :admin player :players #{} :spectators #{} role #{player})))
+      (update-in [:rooms room] (fnil #(update % :players conj player)
+                                     (hash-map :admin player :players #{player})))
       (assoc-in [:users player :room] room)))
 
 (defn remove-from-all-rooms [state player-id]
@@ -93,12 +83,10 @@
       (-> state
           (update-in [:users player-id] dissoc :room)
           (update :rooms (fn [rooms]
-                           (let [{:keys [admin players spectators]} (get rooms old-room)
+                           (let [{:keys [admin players]} (get rooms old-room)
                                  players' (disj players player-id)
-                                 spectators' (disj spectators player-id)
                                  admin' (if (= admin player-id)
-                                          (or (first (shuffle players'))
-                                              (first (shuffle spectators')))
+                                          (first (shuffle players'))
                                           admin)]
                              (if (nil? admin')
                                (dissoc rooms old-room)
@@ -106,7 +94,7 @@
       state)))
 
 (comment
-  (add-to-room {:rooms {"room1" {:admin "p" :players #{"p"}}} :users {}} "room1" "p2" :players)
+  (add-to-room {:rooms {"room1" {:admin "p" :players #{"p"}}} :users {}} "room1" "p2")
   (remove-from-all-rooms {:rooms {"room1" {:admin "p" :players #{"p"}}} :users {"p" {:room "room1"}}} "p"))
 
 ;; FIXME these are terrible names
@@ -114,12 +102,12 @@
 (defn linearize! [f]
   (assert (>!! c f) "put should succeed"))
 
-(defn join-room [state room player role]
-  {:pre [state room player (contains? #{:players :spectators} role)]
+(defn join-room [state room player]
+  {:pre [state room player]
    :post [(= (get-in state [:rooms :rooms]) nil)]}
   (-> state
       (remove-from-all-rooms player)
-      (add-to-room room player role)))
+      (add-to-room room player)))
 
 (defn leave-room [rooms player]
   (remove-from-all-rooms rooms player))
@@ -128,7 +116,7 @@
   {:pre [rooms users room-id]}
   (let [room (get rooms room-id)]
     (assert room)
-    (doseq [player-id (shuffle (concat (:players room) (:spectators room)))
+    (doseq [player-id (shuffle (:players room))
             :let [socket (get-in users [player-id :socket])]]
       (ws/send socket (html (room-html room-id player-id room))))))
 
@@ -139,7 +127,7 @@
         player-id (:value (get (:cookies request) "id"))
         _ (assert (not (nil? player-id)) "player-id is nil!")
         rooms (:rooms @state)
-        room (or (get rooms room-id) {:admin false :players #{} :spectators #{}})]
+        room (or (get rooms room-id) {:admin false :players #{}})]
     (h/html (room-html room-id player-id room))))
 
 (defmethod room-handler :default [request]
@@ -147,7 +135,7 @@
         player-id (:value (get (:cookies request) "id"))
         _ (assert (not (nil? player-id)) "player-id is nil!")
         rooms (:rooms @state)
-        room (or (get rooms room-id) {:admin false :players #{} :spectators #{}})]
+        room (or (get rooms room-id) {:admin false :players #{}})]
     (page-skeleton [:div.container
                     [:h1.title "Captain Sonar"]
                     (room-html room-id player-id room)])))
@@ -156,10 +144,8 @@
   (let [{event "event" room-id "room"} (json/parse-string message)]
     (prn message)
     (case event
-      "join-room" (linearize! (fn [] (let [state' (swap! state #(join-room % room-id player-id :players))]
-                                       (broadcast-update! state' room-id))))
-      "join-room-spec" (linearize! (fn [] (let [state' (swap! state #(join-room % room-id player-id :spectators))]
-                                            (broadcast-update! state' room-id)))))))
+      "join-room" (linearize! (fn [] (let [state' (swap! state #(join-room % room-id player-id))]
+                                       (broadcast-update! state' room-id)))))))
 
 (defn ws-handler [request]
   (if (ws/upgrade-request? request)
