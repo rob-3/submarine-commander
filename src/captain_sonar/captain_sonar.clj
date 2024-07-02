@@ -38,10 +38,10 @@
 (defn page-skeleton [children]
   (page/html5 (page/include-css "/index.css")
               [:script {:type "text/javascript"
-                        :src "https://unpkg.com/htmx.org@1.9.12"
-                        :integrity "sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2"
+                        :src "https://unpkg.com/htmx.org@2.0.0"
+                        :integrity "sha384-wS5l5IKJBvK6sPTKa2WZ1js3d947pvWXbPJ1OmWfEuxLgeHcEbjUUA5i9V5ZkpCw"
                         :crossorigin "anonymous"}]
-              [:script {:src "https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js"}]
+              [:script {:src "https://unpkg.com/htmx-ext-ws@2.0.0/ws.js"}]
               (h/html [:div#ws.container {:hx-ext "ws" :ws-connect "/ws"}
                        children])))
 
