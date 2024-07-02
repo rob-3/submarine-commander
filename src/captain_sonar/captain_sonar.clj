@@ -166,20 +166,19 @@
                    (println (:remote-addr request) "pong")
                    (let [current-time (System/currentTimeMillis)]
                      (swap! state assoc-in [:users user-id :last-ping] current-time)))
-        :on-message #(on-message %1 %2 user-id)}})
-        ;:on-close (fn [_socket _code _reason]
-        ;            (println (:remote-addr request) "disconnected")
-        ;            (println _reason)
-        ;            (let [player (get-in request [:cookies "id" :value])]
-        ;              (future ((fn []
-        ;                         (Thread/sleep 5000)
-        ;                         (let [last-ping (get-in @users [user-id :last-ping])
-        ;                               current-time (System/currentTimeMillis)]
-        ;                           (if (> (- current-time 3000) last-ping)
-        ;                             (do
-        ;                               (leave-room! player)
-        ;                               (println "left"))
-        ;                             (println "didn't leave")))))))}})
+        :on-message #(on-message %1 %2 user-id)
+        :on-close (fn [socket _code _reason]
+                    (linearize! 
+                      #((let [state' (swap! state
+                                            (fn [s]
+                                              (let [reconnected? (= (get-in s [:users user-id :socket])
+                                                                    socket)]
+                                                (-> s
+                                                    (remove-from-all-rooms user-id)
+                                                    (cond-> reconnected? (update :users dissoc user-id))))))]
+                          ;; FIXME this should be more granular to the specific room
+                          (doseq [room-id (keys (:rooms state'))]
+                            (broadcast-update! state' room-id))))))}})
     {:status 400 :headers {"vary" "hx-request" "cache-control" "no-store"} :body "Websocket upgrade requests only!"}))
 
 (defn index-handler [request]
