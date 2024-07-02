@@ -8,12 +8,12 @@
 
 (defn location? [l] (boolean (and (vector? l) (= 2 (count l)))))
 
-(defn make-move [trail move island-map distance]
-  {:pre [(#{:north :south :east :west} move)]}
+(defn make-move [trail direction island-map distance]
+  {:pre [(#{:north :south :east :west} direction)]}
   (loop [trail trail
          distance distance]
     (let [[x y] (last trail)
-          [x' y'] (case move
+          [x' y'] (case direction
                     :north [x (dec y)]
                     :south [x (inc y)]
                     :east [(inc x) y]
