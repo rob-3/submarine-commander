@@ -1,15 +1,17 @@
 (ns captain-sonar.captain-sonar
   (:gen-class)
   (:require
+   [captain-sonar.actions :refer [teams]]
    [cheshire.core :as json]
+   [clojure.core.async :refer [<!! >!!] :as a]
+   [clojure.string :as string]
    [clojure.walk :refer [keywordize-keys]]
    [hiccup.page :as page]
    [hiccup2.core :as h]
    [ring.adapter.jetty :as jetty]
    [ring.middleware.cookies :as middleware]
    [ring.util.codec :refer [form-decode]]
-   [ring.websocket :as ws]
-   [clojure.core.async :refer [<!! >!!] :as a]))
+   [ring.websocket :as ws]))
 
 (defmacro html [& args]
   `(str (h/html ~@args)))
@@ -68,6 +70,23 @@
        (if (= player player-id)
          (when-not admin? [:div (str "You (" player ") are in the room.")])
          [:div (str "Player " player " is in the room.")]))
+     (when admin?
+       [:form.form
+        {:style "padding: 1em"}
+        (for [team teams
+              :let [team-name (string/capitalize (name team))]]
+          (list
+           [:h1.title.two-col (str team-name " Team")]
+           (for [[role role-id] {"Captain" "captain"
+                                 "First Mate" "first-mate"
+                                 "Radio Operator" "radio-operator"
+                                 "Engineer" "engineer"}]
+             (let [id (str team "-" role-id "-select")]
+               (list
+                [:label {:for id} role]
+                [:select {:id id :name role-id}
+                 (for [player players] [:option {:value player} player])])))))
+        [:input.button.submit.two-col {:type "submit" :value "Start Game"}]])
      (when playing? [:button.button {:hx-push-url "true" :hx-post "/leave-room"} "Leave Room"])]))
 
 (defn add-to-room [state room player]
@@ -168,17 +187,17 @@
                      (swap! state assoc-in [:users user-id :last-ping] current-time)))
         :on-message #(on-message %1 %2 user-id)
         :on-close (fn [socket _code _reason]
-                    (linearize! 
-                      #((let [state' (swap! state
-                                            (fn [s]
-                                              (let [reconnected? (= (get-in s [:users user-id :socket])
-                                                                    socket)]
-                                                (-> s
-                                                    (remove-from-all-rooms user-id)
-                                                    (cond-> reconnected? (update :users dissoc user-id))))))]
+                    (linearize!
+                     #((let [state' (swap! state
+                                           (fn [s]
+                                             (let [reconnected? (= (get-in s [:users user-id :socket])
+                                                                   socket)]
+                                               (-> s
+                                                   (remove-from-all-rooms user-id)
+                                                   (cond-> reconnected? (update :users dissoc user-id))))))]
                           ;; FIXME this should be more granular to the specific room
-                          (doseq [room-id (keys (:rooms state'))]
-                            (broadcast-update! state' room-id))))))}})
+                         (doseq [room-id (keys (:rooms state'))]
+                           (broadcast-update! state' room-id))))))}})
     {:status 400 :headers {"vary" "hx-request" "cache-control" "no-store"} :body "Websocket upgrade requests only!"}))
 
 (defn index-handler [request]
