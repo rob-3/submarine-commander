@@ -1,12 +1,12 @@
 (ns captain-sonar.actions
   (:require
    [captain-sonar.maps :as maps]
-   [captain-sonar.systems :refer [drone-charged? green-broken? mine-charged?
-                                  red-broken? silence-charged? sonar-charged?
-                                  torpedo-charged? yellow-broken?]]))
+   [captain-sonar.systems :refer [broken?]]))
 
 (def teams [:team/red :team/blue])
 (defn team? [t] (boolean (#{:team/red :team/blue} t)))
+
+(defn location? [l] (boolean (and (vector? l) (= 2 (count l)))))
 
 (defn make-move [trail move island-map distance]
   {:pre [(#{:north :south :east :west} move)]}
@@ -46,6 +46,15 @@
    :drone 4
    :sonar 3
    :silence 6})
+
+(def system->color
+  {:torpedo :red
+   :mine :red
+   :drone :green
+   :sonar :green
+   :silence :yellow})
+
+(def system? (set (keys max-system-charges)))
 
 ;; TODO What do the rules say about charging systems?
 ;; It's not clear if the first mate MUST charge a system with each move.
@@ -95,22 +104,17 @@
 ;; * You _can_ lay a mine diagonally.
 ;; * You cannot lay a mine on your path or on top another mine.
 ;; * You cannot move through your own mine with or without silence.
-(defn lay-mine [{:keys [mines trail breakdowns systems] :as state} mine-location]
-  (let [charged? (mine-charged? systems)
-        weapons-down? (red-broken? breakdowns)
+(defn lay-mine [game-state team-laying mine-location]
+  (let [{:keys [mines trail]} (get-in game-state [:teams team-laying])
         sub-location (last trail)
         in-trail? (some #{mine-location} trail)
         adj? (adjacent? sub-location mine-location)
         already-laid? (contains? mines mine-location)]
     (cond
-      (not charged?) :illegal-mine-uncharged
-      weapons-down? :illegal-weapons-are-broken
       already-laid? :illegal-mine-already-laid
       in-trail? :illegal-mine-in-trail
       (not adj?) :illegal-mine-not-adj
-      :else (-> state
-                (update :mines conj mine-location)
-                (assoc-in [:systems :mine] 0)))))
+      :else (update-in game-state [:teams team-laying :mines] conj mine-location))))
 
 (defn explosion-wrt
   "Explodes \"with regard to\" a submarine."
@@ -137,7 +141,7 @@
 (defn detonate-mine [game-state team-detonating mine-location]
   {:pre [(team? team-detonating)]}
   (let [breakdowns (get-in game-state [:teams team-detonating :breakdowns])
-        weapons-down? (red-broken? breakdowns)
+        weapons-down? (broken? breakdowns :red)
         mines (get-in game-state [:teams team-detonating :mines])
         mine-exists? (contains? mines mine-location)]
     (cond
@@ -150,37 +154,20 @@
 ;; Rulings:
 ;; * Torpedos cannot move through islands, see official designer ruling at
 ;;   https://boardgamegeek.com/thread/1913121/rule-clarification-torpedomissilesmines
-(defn fire-torpedo [game-state team-firing torpedo-location]
+(defn fire-torpedo [game-state team-firing firing-to]
   {:pre [(team? team-firing)]}
-  (let [team-firing-state (get-in game-state [:teams team-firing])
-        charged? (torpedo-charged? (:systems team-firing-state))
-        breakdowns (:breakdowns team-firing-state)
-        weapons-down? (red-broken? breakdowns)
-        firing-team-location (last (:trail team-firing-state))
+  (let [firing-team-location (last (get-in game-state [:teams team-firing :trail]))
         ;; FIXME handle edge cases with firing around islands
         in-range? (within-n? firing-team-location team-firing 4)]
-    (cond
-      (not charged?) :illegal-torpedo-uncharged
-      weapons-down? :illegal-weapons-are-broken
-      (not in-range?) :illegal-out-of-range
-      :else (-> game-state
-                (assoc-in [:teams team-firing :systems :torpedo] 0)
-                (explosion-at torpedo-location)))))
+    (if (not in-range?)
+      :illegal-out-of-range
+      (explosion-at game-state firing-to))))
 
 (defn use-sonar [game-state team-using team-targeted]
   {:pre [(team? team-using) (team? team-targeted)]}
-  (let [team-using-state (get-in game-state [:teams team-using]) 
-        charged? (sonar-charged? (:systems team-using-state))
-        breakdowns (:breakdowns team-using-state)
-        sonar-down? (green-broken? breakdowns)]
-    (cond
-      (not charged?) :illegal-sonar-uncharged
-      sonar-down? :illegal-sensors-are-broken
-      :else (-> game-state
-                (assoc-in [:teams team-using :systems :sonar] 0)
-                (update :events conj {:type :sonar
-                                      :from team-using
-                                      :to team-targeted})))))
+  (update game-state :events conj {:type :sonar
+                                   :from team-using
+                                   :to team-targeted}))
 
 (defn in-sector? [guessed-sector location]
   ;; FIXME we're assuming the 15x15 board here
@@ -194,35 +181,50 @@
 
 (defn use-drone [game-state team-using team-targeted guessed-sector]
   {:pre [(team? team-using) (team? team-targeted)]}
-  (let [team-using-state (get-in game-state [:teams team-using])
-        charged? (drone-charged? (:systems team-using-state))
-        breakdowns (:breakdowns team-using-state)
-        drone-down? (green-broken? breakdowns)
-        team-location (last (get-in game-state [:teams team-targeted :trail]))
+  (let [team-location (last (get-in game-state [:teams team-targeted :trail]))
         are-they-there? (in-sector? guessed-sector team-location)]
-    (cond
-      (not charged?) :illegal-drone-uncharged
-      drone-down? :illegal-sensors-are-broken
-      :else (-> game-state
-                (assoc-in [:teams team-using :systems :drone] 0)
-                (update :events conj {:type :drone-inform
-                                      :team team-using
-                                      :answer are-they-there?})))))
+    (update game-state :events conj {:type :drone-inform
+                                     :team team-using
+                                     :answer are-they-there?})))
 
 (defn use-silence [game-state team-moving direction island-map]
   {:pre [(team? team-moving)
          (#{:north :south :east :west} direction)]}
-  (let [{:keys [breakdowns systems trail]} (get-in game-state [:teams team-moving])
-        charged? (silence-charged? systems)
-        silence-down? (yellow-broken? breakdowns)
+  (let [trail (get-in game-state [:teams team-moving :trail])
         trail' (make-move trail direction island-map 4)]
+    (if (keyword? trail')
+      trail'
+      (assoc-in game-state [:teams team-moving :trail] trail'))))
+
+(defn activate-system [game-state {:keys [system team-activating params]}]
+  {:pre [(team? team-activating)
+         (system? system)]}
+  (let [{:keys [systems breakdowns]} (get-in game-state [:teams team-activating])
+        charged? (< (system systems) (system max-system-charges))
+        disabled? (broken? breakdowns (system->color system))]
     (cond
-      (not charged?) :illegal-silence-uncharged
-      silence-down? :illegal-yellow-is-broken
-      (keyword? trail') trail'
-      :else (-> game-state
-                (assoc-in [:teams team-moving :systems :silence] 0)
-                (assoc-in [:teams team-moving :trail] trail')))))
+      (not charged?) :system-uncharged
+      disabled? :system-down
+      :else (as-> game-state game-state
+              (assoc-in game-state [:teams team-activating :systems system] 0)
+              (case system
+                :torpedo (do
+                           (assert (location? (:location params)))
+                           (fire-torpedo game-state team-activating (:location params)))
+                :mine (do
+                        (assert (location? (:location params)))
+                        (lay-mine game-state team-activating (:location params)))
+                :drone (do
+                         (assert (team? (:target-team params)))
+                         (use-drone game-state team-activating (:target-team params) (:guessed-sector params)))
+                :sonar (do
+                         (assert (team? (:target-team params)))
+                         (use-sonar game-state team-activating (:target-team params)))
+                ;; FIXME don't hardcode the map
+                ;; it should probably live in the game state somewhere
+                :silence (do
+                           (assert (#{:north :east :south :west} (:direction params)))
+                           (use-silence game-state team-activating (:direction params) maps/alpha)))))))
 
 (comment
   (require '[captain-sonar.game-engine :as game-engine])
@@ -243,7 +245,7 @@
           :mines #{}})
   (attempt-move x :north :torpedo :green1)
   (surface x)
-  (lay-mine x [2 6])
+  (lay-mine game-engine/state :team/red [1 2])
   (explosion-wrt x [2 6])
   (explosion-at game-engine/state [1 2])
   (detonate-mine game-engine/state :team/red [1 2])
