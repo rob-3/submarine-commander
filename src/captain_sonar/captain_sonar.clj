@@ -40,10 +40,8 @@
 (defn page-skeleton [children]
   (page/html5 (page/include-css "/index.css")
               [:script {:type "text/javascript"
-                        :src "https://unpkg.com/htmx.org@2.0.0"
-                        :integrity "sha384-wS5l5IKJBvK6sPTKa2WZ1js3d947pvWXbPJ1OmWfEuxLgeHcEbjUUA5i9V5ZkpCw"
-                        :crossorigin "anonymous"}]
-              [:script {:src "https://unpkg.com/htmx-ext-ws@2.0.0/ws.js"}]
+                        :src "/htmx.js"}]
+              [:script {:src "/ws.js"}]
               (h/html [:div#ws.container {:hx-ext "ws" :ws-connect "/ws"}
                        children])))
 
@@ -221,6 +219,8 @@
   (case [(:request-method request) (:uri request)]
     [:get "/"] (index-handler request)
     [:get "/index.css"] (file-rsp "resources/index.css")
+    [:get "/htmx.js"] (file-rsp "resources/htmx.js")
+    [:get "/ws.js"] (file-rsp "resources/ws.js")
     [:post "/"] {:status 200 :headers {"vary" "hx-request" "cache-control" "no-store"} :body "post"}
     [:get "/room"] {:status 200
                     :headers {"vary" "hx-request"
