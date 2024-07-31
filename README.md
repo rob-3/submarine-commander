@@ -28,11 +28,6 @@ This will start up a Clojure [nrepl](https://github.com/nrepl/nrepl), from which
 captain-sonar.captain-sonar=> (-main)
 ```
 
-> [!NOTE]
-> The Clojure REPL is an crucial part of the language. It allows you to debug,
-> experiment, and dynamically redefine functions and variables. If you don't
-> use the REPL, then you don't really understand Clojure.
-
 ## License
 
 MPL-2.0, see LICENSE
