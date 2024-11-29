@@ -12,7 +12,7 @@
     (boolean (and (<= x-min x x-max)
                   (<= y-min y y-max)))))
 
-(defn valid-space? [map coord]
+(defn- valid-space? [map coord]
   (and (not (contains? (:islands map) coord))
        (within-dimensions? (:dimensions map) coord)))
 
@@ -30,6 +30,14 @@
    [x (dec y)]
    [(inc x) y]
    [x (inc y)]])
+
+(defn neighbors [map coord]
+  (vec (for [space (adj-spaces coord)
+             :when (valid-space? map space)]
+         space)))
+
+(comment
+  (neighbors alpha [2 3]))
 
 (comment
   ;; prints the map to stdout
