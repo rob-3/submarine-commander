@@ -1,5 +1,6 @@
 (ns captain-sonar.actions
   (:require
+   [captain-sonar.a-star :refer [a* maze-distance] :as a-star]
    [captain-sonar.maps :as maps]
    [captain-sonar.systems :refer [broken?]]))
 
@@ -157,8 +158,12 @@
 (defn fire-torpedo [game-state team-firing firing-to]
   {:pre [(team? team-firing)]}
   (let [firing-team-location (last (get-in game-state [:teams team-firing :trail]))
-        ;; FIXME handle edge cases with firing around islands
-        in-range? (within-n? firing-team-location team-firing 4)]
+        in-range? (->> (a* :heuristic-fn maze-distance
+                           :neighbors-fn (partial maps/neighbors maps/alpha)
+                           :start firing-team-location
+                           :finish firing-to)
+                       :cost
+                       (<= 4))]
     (if (not in-range?)
       :illegal-out-of-range
       (explosion-at game-state firing-to))))
