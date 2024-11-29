@@ -1,6 +1,5 @@
 (ns captain-sonar.a-star
-  (:require [clojure.math :as math]
-            [clojure.data.priority-map :refer [priority-map-keyfn]]
+  (:require [clojure.data.priority-map :refer [priority-map-keyfn]]
             [captain-sonar.maps :as maps]))
 
 (defn maze-distance [[x1 y1] [x2 y2]]
