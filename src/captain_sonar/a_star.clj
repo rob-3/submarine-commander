@@ -3,11 +3,12 @@
             [clojure.data.priority-map :refer [priority-map-keyfn]]
             [captain-sonar.maps :as maps]))
 
-(defn euclidian-distance [v1 v2]
-  (math/sqrt (reduce + (map #(math/pow (- %1 %2) 2) v1 v2)))) 
+(defn maze-distance [[x1 y1] [x2 y2]]
+  (+ (abs (- x1 x2))
+     (abs (- y1 y2))))
 
 (comment
-  (euclidian-distance [0 0] [3 4]))
+  (maze-distance [0 0] [3 4]))
 
 ;; An A* implementation for torpedo pathfinding
 ;; neighbors-fn :: node -> {:node node :cost +int}[]
@@ -50,9 +51,9 @@
                                  {:node [x (dec y)] :cost 1}
                                  {:node [(inc x) y] :cost 1}
                                  {:node [x (inc y)] :cost 1}])
-      :heuristic-fn euclidian-distance
+      :heuristic-fn maze-distance
       :start [0 0]
-      :finish [10 10])
+      :finish [1000 1000])
   ;; closest to a real usage
   (a* :neighbors-fn (fn [[x y]]
                       (->> [[(dec x) y]
@@ -62,11 +63,11 @@
                            (remove maps/alpha)
                            (filter (fn [[x y]] (and (<= 1 x 15) (<= 1 y 15))))
                            (mapv (fn [[x y]] {:node [x y] :cost 1}))))
-      :heuristic-fn euclidian-distance
+      :heuristic-fn maze-distance
       :start [1 1]
       :finish [2 4])
   ;; no neighbors should give :no-path
   (a* :neighbors-fn (fn [_] [])
-      :heuristic-fn euclidian-distance
+      :heuristic-fn maze-distance
       :start [1 1]
       :finish [1 2]))
