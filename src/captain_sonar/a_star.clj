@@ -18,7 +18,7 @@
 ;; assumes no negative weights or heuristic-fn return values
 (defn a* [& {:keys [heuristic-fn start finish]
              neighbors-of :neighbors-fn}]
-  (if (= start finish) 0
+  (if (= start finish) {:cost 0 :path (list start)}
       (loop [work-queue (priority-map-keyfn :heuristic
                                             start {:heuristic ##-Inf :cost 0})]
         (let [current-data (first work-queue)
@@ -70,4 +70,9 @@
   (a* :neighbors-fn (fn [_] [])
       :heuristic-fn maze-distance
       :start [1 1]
-      :finish [1 2]))
+      :finish [1 2])
+  ;; (= start finish)
+  (a* :neighbors-fn (fn [_] [])
+      :heuristic-fn maze-distance
+      :start [1 1]
+      :finish [1 1]))
