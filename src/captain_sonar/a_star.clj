@@ -3,10 +3,8 @@
             [clojure.data.priority-map :refer [priority-map-keyfn]]
             [captain-sonar.maps :as maps]))
 
-(defn euclidian-distance [[x1 y1] [x2 y2]]
-  (math/sqrt (+
-              (math/pow (- x1 x2) 2)
-              (math/pow (- y1 y2) 2))))
+(defn euclidian-distance [v1 v2]
+  (math/sqrt (reduce + (map #(math/pow (- %1 %2) 2) v1 v2)))) 
 
 (comment
   (euclidian-distance [0 0] [3 4]))
