@@ -19,7 +19,7 @@
                     :east [(inc x) y]
                     :west [(dec x) y])]
       (cond
-        (contains? island-map [x' y']) :illegal-island-move
+        (contains? (:islands island-map) [x' y']) :illegal-island-move
         (not (and (>= 15 x' 1) (>= 15 y' 1))) :illegal-offmap-move
         (some #{[x' y']} trail) :illegal-trail-cross
         (= distance 0) trail

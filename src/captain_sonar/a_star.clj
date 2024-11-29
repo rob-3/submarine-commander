@@ -59,7 +59,7 @@
                             [x (dec y)]
                             [(inc x) y]
                             [x (inc y)]]
-                           (remove maps/alpha)
+                           (remove (:islands maps/alpha))
                            (filter (fn [[x y]] (and (<= 1 x 15) (<= 1 y 15))))
                            (mapv #(hash-map :node % :cost 1))))
       :heuristic-fn maze-distance
