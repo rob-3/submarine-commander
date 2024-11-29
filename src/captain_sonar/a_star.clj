@@ -61,7 +61,7 @@
                             [x (inc y)]]
                            (remove maps/alpha)
                            (filter (fn [[x y]] (and (<= 1 x 15) (<= 1 y 15))))
-                           (mapv (fn [[x y]] {:node [x y] :cost 1}))))
+                           (mapv #(hash-map :node % :cost 1))))
       :heuristic-fn maze-distance
       :start [1 1]
       :finish [2 4])
