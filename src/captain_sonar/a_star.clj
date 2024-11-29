@@ -33,7 +33,7 @@
             :else (let [neighbors (neighbors-of node)
                         neighbors-data (for [{neighbor :node neighbor-cost :cost} neighbors
                                              :let [total-cost (+ cost neighbor-cost)
-                                                   current-cost (:cost (get work-queue neighbor))]
+                                                   current-cost (get-in work-queue [neighbor :cost])]
                                              :when (< total-cost (or current-cost ##Inf))]
                                          [neighbor
                                           {:heuristic (+ total-cost (heuristic-fn finish neighbor))
