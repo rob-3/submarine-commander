@@ -25,6 +25,12 @@
   (assert (not (valid-space? alpha [-1 5])))
   (assert (not (valid-space? alpha [3 -5]))))
 
+(defn adj-spaces [[x y]]
+  [[(dec x) y]
+   [x (dec y)]
+   [(inc x) y]
+   [x (inc y)]])
+
 (comment
   ;; prints the map to stdout
   (mapv (fn [y]

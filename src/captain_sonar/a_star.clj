@@ -46,19 +46,13 @@
 
 (comment
   ;; basic test in empty grid
-  (a* :neighbors-fn (fn [[x y]] [{:node [(dec x) y] :cost 1}
-                                 {:node [x (dec y)] :cost 1}
-                                 {:node [(inc x) y] :cost 1}
-                                 {:node [x (inc y)] :cost 1}])
+  (a* :neighbors-fn (fn [coord] (mapv #(hash-map :node % :cost 1) (maps/adj-spaces coord)))
       :heuristic-fn maze-distance
       :start [0 0]
       :finish [1000 1000])
   ;; closest to a real usage
-  (a* :neighbors-fn (fn [[x y]]
-                      (->> [[(dec x) y]
-                            [x (dec y)]
-                            [(inc x) y]
-                            [x (inc y)]]
+  (a* :neighbors-fn (fn [coord]
+                      (->> (maps/adj-spaces coord)
                            (remove (:islands maps/alpha))
                            (filter (fn [[x y]] (and (<= 1 x 15) (<= 1 y 15))))
                            (mapv #(hash-map :node % :cost 1))))
