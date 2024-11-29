@@ -1,6 +1,6 @@
-(ns captain-sonar.captain-sonar-test
+(ns dev.rob-3.captain-sonar.captain-sonar-test
   (:require
-   [captain-sonar.systems :refer [broken?]]
+   [dev.rob-3.captain-sonar.systems :refer [broken?]]
 
    [clojure.test :refer [deftest is run-tests testing]]))
 

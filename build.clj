@@ -4,7 +4,7 @@
 
 (def lib 'net.clojars.captain-sonar/captain-sonar)
 (def version "0.1.0-SNAPSHOT")
-(def main 'captain-sonar.captain-sonar)
+(def main 'dev.rob-3.captain-sonar.captain-sonar)
 (def class-dir "target/classes")
 
 (defn test "Run all the tests." [opts]

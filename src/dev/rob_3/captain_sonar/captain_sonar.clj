@@ -1,7 +1,7 @@
-(ns captain-sonar.captain-sonar
+(ns dev.rob-3.captain-sonar.captain-sonar
   (:gen-class)
   (:require
-   [captain-sonar.actions :refer [teams]]
+   [dev.rob-3.captain-sonar.actions :refer [teams]]
    [cheshire.core :as json]
    [clojure.core.async :refer [<!! >!!] :as a]
    [clojure.string :as string]

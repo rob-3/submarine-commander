@@ -1,6 +1,6 @@
-(ns captain-sonar.game-engine
+(ns dev.rob-3.captain-sonar.game-engine
   (:require
-   [captain-sonar.actions :refer [location?]]))
+   [dev.rob-3.captain-sonar.actions :refer [location?]]))
 
 (def state
   {:teams {:team/red {:trail [[1 1]]

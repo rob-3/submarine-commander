@@ -1,8 +1,8 @@
-(ns captain-sonar.actions
+(ns dev.rob-3.captain-sonar.actions
   (:require
-   [captain-sonar.a-star :refer [a* maze-distance] :as a-star]
-   [captain-sonar.maps :as maps]
-   [captain-sonar.systems :refer [broken?]]))
+   [dev.rob-3.captain-sonar.a-star :refer [a* maze-distance] :as a-star]
+   [dev.rob-3.captain-sonar.maps :as maps]
+   [dev.rob-3.captain-sonar.systems :refer [broken?]]))
 
 (def teams [:team/red :team/blue])
 (defn team? [t] (boolean (#{:team/red :team/blue} t)))
