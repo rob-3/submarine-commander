@@ -1,4 +1,4 @@
-(ns dev.rob-3.captain-sonar.maps)
+(ns dev.rob-3.submarine-commander.maps)
 
 (def alpha
   {:dimensions [[1 1] [15 15]]

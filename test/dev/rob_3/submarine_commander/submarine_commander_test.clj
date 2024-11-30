@@ -1,6 +1,6 @@
-(ns dev.rob-3.captain-sonar.captain-sonar-test
+(ns dev.rob-3.submarine-commander.submarine-commander-test
   (:require
-   [dev.rob-3.captain-sonar.systems :refer [broken?]]
+   [dev.rob-3.submarine-commander.systems :refer [broken?]]
 
    [clojure.test :refer [deftest is run-tests testing]]))
 
@@ -15,4 +15,4 @@
     (is (not (broken? {:west #{:red} :north #{:yellow1 :red1} :south #{:yellow1} :east #{}} :green)))))
 
 (comment
-  (run-tests 'captain-sonar.captain-sonar-test))
+  (run-tests 'submarine-commander.submarine-commander-test))

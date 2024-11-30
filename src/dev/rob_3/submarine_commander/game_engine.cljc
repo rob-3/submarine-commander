@@ -1,6 +1,6 @@
-(ns dev.rob-3.captain-sonar.game-engine
+(ns dev.rob-3.submarine-commander.game-engine
   (:require
-   [dev.rob-3.captain-sonar.actions :refer [location?]]))
+   [dev.rob-3.submarine-commander.actions :refer [location?]]))
 
 (def state
   {:players {"d0869bad-8696-4405-ab35-8c34b2e96d33" [:team/red :captain]

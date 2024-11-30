@@ -1,8 +1,8 @@
-(ns dev.rob-3.captain-sonar.actions
+(ns dev.rob-3.submarine-commander.actions
   (:require
-   [dev.rob-3.captain-sonar.a-star :refer [a* maze-distance] :as a-star]
-   [dev.rob-3.captain-sonar.maps :as maps]
-   [dev.rob-3.captain-sonar.systems :refer [broken?]]))
+   [dev.rob-3.submarine-commander.a-star :refer [a* maze-distance] :as a-star]
+   [dev.rob-3.submarine-commander.maps :as maps]
+   [dev.rob-3.submarine-commander.systems :refer [broken?]]))
 
 (def teams [:team/red :team/blue])
 (defn team? [t] (boolean (#{:team/red :team/blue} t)))
@@ -232,7 +232,7 @@
                            (use-silence game-state team-activating (:direction params) maps/alpha)))))))
 
 (comment
-  (require '[captain-sonar.game-engine :as game-engine])
+  (require '[submarine-commander.game-engine :as game-engine])
   ;; FIXME these are terrible inline (comment) tests; we'll make these proper soon
   (def x {:trail [[2 5]]
           :health 4

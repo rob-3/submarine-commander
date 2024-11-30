@@ -1,8 +1,8 @@
-(ns dev.rob-3.captain-sonar.captain-sonar
+(ns dev.rob-3.submarine-commander.main
   (:gen-class)
   (:require
-   [dev.rob-3.captain-sonar.actions :refer [teams]]
-   [dev.rob-3.captain-sonar.game-engine :refer [create-game]]
+   [dev.rob-3.submarine-commander.actions :refer [teams]]
+   [dev.rob-3.submarine-commander.game-engine :refer [create-game]]
    [cheshire.core :as json]
    [clojure.core.async :refer [<!! >!!] :as a]
    [clojure.string :as string]

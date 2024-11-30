@@ -1,4 +1,4 @@
-# Captain Sonar Helper
+# Submarine Commander
 
 ## Getting Started
 
@@ -7,25 +7,19 @@
 Clone the repository.
 
 ```bash
-git clone https://github.com/rob-3/captain-sonar-helper.git
-cd captain-sonar-helper
+git clone https://github.com/rob-3/submarine-commander.git
+cd submarine-commander
 ```
 Build the container.
 
 ```bash
-docker build -t captain-sonar .
+docker build -t submarine-commander .
 ```
 
 Run the container.
 
 ```bash
-docker run -v .:/code/ -p12345:12345 -p3000:3000 -i captain-sonar:latest devbox run clojure -M:nrepl-docker
-```
-
-This will start up a Clojure [nrepl](https://github.com/nrepl/nrepl), from which you can start the application. Type `(-main)` into the REPL and press enter.
-
-```clojure
-captain-sonar.captain-sonar=> (-main)
+docker run -v .:/code/ -p12345:12345 -p3000:3000 -i submarine-commander:latest devbox run java -jar target/net.clojars.submarine-commander/submarine-commander-0.1.0-SNAPSHOT.jar
 ```
 
 ## License

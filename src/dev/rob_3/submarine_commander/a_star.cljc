@@ -1,6 +1,6 @@
-(ns dev.rob-3.captain-sonar.a-star
+(ns dev.rob-3.submarine-commander.a-star
   (:require [clojure.data.priority-map :refer [priority-map-keyfn]]
-            [dev.rob-3.captain-sonar.maps :as maps]))
+            [dev.rob-3.submarine-commander.maps :as maps]))
 
 (defn maze-distance [[x1 y1] [x2 y2]]
   (+ (abs (- x1 x2))

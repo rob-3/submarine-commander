@@ -2,9 +2,9 @@
   (:refer-clojure :exclude [test])
   (:require [clojure.tools.build.api :as b]))
 
-(def lib 'net.clojars.captain-sonar/captain-sonar)
+(def lib 'net.clojars.submarine-commander/submarine-commander)
 (def version "0.1.0-SNAPSHOT")
-(def main 'dev.rob-3.captain-sonar.captain-sonar)
+(def main 'dev.rob-3.submarine-commander.main)
 (def class-dir "target/classes")
 
 (defn test "Run all the tests." [opts]

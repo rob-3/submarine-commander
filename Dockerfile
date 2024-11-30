@@ -14,4 +14,4 @@ COPY --chown=${DEVBOX_USER}:${DEVBOX_USER} . .
 
 RUN devbox run clojure -T:build ci
 
-CMD ["devbox", "run", "java", "-jar", "target/net.clojars.captain-sonar/captain-sonar-0.1.0-SNAPSHOT.jar"]
+CMD ["devbox", "run", "java", "-jar", "target/net.clojars.submarine-commander/submarine-commander-0.1.0-SNAPSHOT.jar"]
