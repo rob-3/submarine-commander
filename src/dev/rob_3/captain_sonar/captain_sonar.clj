@@ -1,9 +1,8 @@
 (ns dev.rob-3.captain-sonar.captain-sonar
   (:gen-class)
   (:require
-   [dev.rob-3.captain-sonar.actions :refer [make-move teams]]
+   [dev.rob-3.captain-sonar.actions :refer [teams]]
    [dev.rob-3.captain-sonar.game-engine :refer [create-game]]
-   [dev.rob-3.captain-sonar.maps :as maps]
    [cheshire.core :as json]
    [clojure.core.async :refer [<!! >!!] :as a]
    [clojure.string :as string]
@@ -98,7 +97,6 @@
   (let [started? (boolean game)
         playing? (contains? players player-id)
         admin? (= player-id admin)]
-    (def started? started?)
     (if started? (game-html player-id game room-id)
         [:div#app.container (when (not playing?) {:ws-send ""
                                                   :hx-vals (json/generate-string {"event" "join-room"
@@ -228,7 +226,6 @@
 
 (defn on-message [_socket message player-id]
   (let [{event "event" room-id "room"} (json/parse-string message)]
-    (def message message)
     (case event
       "join-room" (linearize! (fn [] (let [state' (swap! state #(join-room % room-id player-id))]
                                        (broadcast-update! state' room-id))))
