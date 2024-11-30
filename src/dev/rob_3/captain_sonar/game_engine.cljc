@@ -48,7 +48,10 @@
                        :roles {:captain "3214c318-c497-43d7-a92d-10eb151a844b"
                                :first-mate "c46bcaa8-a2cf-4b4f-8458-6e7dd99163b4"
                                :radio-operator "ac57b545-252e-49e1-8d4f-5f25de66bf7d"
-                               :engineer "eaee2693-6afa-41d5-b5e6-094c5745f8a9"}}}
+                               :engineer "eaee2693-6afa-41d5-b5e6-094c5745f8a9"}
+                       :orders {:captain :west
+                                :first-mate :torpedo
+                                :engineer :yellow}}}
    :events []})
 
 (defn create-team [start roles]
