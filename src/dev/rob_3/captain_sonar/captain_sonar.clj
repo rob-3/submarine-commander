@@ -45,7 +45,6 @@
               (h/html [:div#ws.container {:hx-ext "ws" :ws-connect "/ws"}
                        children])))
 
-(ns-unmap *ns* 'index-page)
 (defmulti index-page request-type)
 (defmethod index-page :default [_request]
   (let [uuid (random-uuid)]
@@ -137,7 +136,6 @@
             :let [socket (get-in users [player-id :socket])]]
       (ws/send socket (html (room-html room-id player-id room))))))
 
-(ns-unmap *ns* 'room-handler)
 (defmulti room-handler request-type)
 (defmethod room-handler :htmx [request]
   (let [room-id (:id (query-params request))
