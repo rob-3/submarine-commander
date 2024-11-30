@@ -19,10 +19,10 @@
                                 :sonar 0
                                 :silence 0}
                       ;; the presence of a keyword means the box is marked
-                      :breakdowns {:west #{:red :yellow :green1 :green2 :reactor1 :reactor2}
-                                   :north #{:yellow1 :yellow2 :red1 :green1 :red2 :reactor}
-                                   :south #{:green :yellow1 :red1 :red2 :reactor :yellow2}
-                                   :east #{:green1 :yellow :red :reactor :green2 :reactor2}}
+                      :breakdowns {:west #{:red1 :yellow1 :green1 :green2 :reactor1 :reactor2}
+                                   :north #{:yellow2 :yellow3 :red2 :green3 :red3 :reactor3}
+                                   :south #{:green4 :yellow4 :red4 :red5 :reactor4 :yellow5}
+                                   :east #{:green5 :yellow6 :red6 :reactor5 :green6 :reactor6}}
                       :surfaced false
                       :mines #{}
                       :roles {:captain "d0869bad-8696-4405-ab35-8c34b2e96d33"
@@ -39,10 +39,10 @@
                                  :drone 0
                                  :sonar 0
                                  :silence 0}
-                       :breakdowns {:west #{:red :yellow :green1 :green2 :reactor1 :reactor2}
-                                    :north #{:yellow1 :yellow2 :red1 :green1 :red2 :reactor}
-                                    :south #{:green :yellow1 :red1 :red2 :reactor :yellow2}
-                                    :east #{:green1 :yellow :red :reactor :green2 :reactor2}}
+                       :breakdowns {:west #{:red1 :green1 :green2 :reactor1 :reactor2}
+                                    :north #{:yellow2 :yellow3 :red2 :green3 :red3 :reactor3}
+                                    :south #{:green4 :yellow4 :red4 :red5 :reactor4 :yellow5}
+                                    :east #{:green5 :yellow6 :red6 :reactor5 :green6 :reactor6}}
                        :surfaced false
                        :mines #{}
                        :roles {:captain "3214c318-c497-43d7-a92d-10eb151a844b"
@@ -51,7 +51,7 @@
                                :engineer "eaee2693-6afa-41d5-b5e6-094c5745f8a9"}
                        :orders {:captain :west
                                 :first-mate :torpedo
-                                :engineer :yellow}}}
+                                :engineer :yellow1}}}
    :events []})
 
 (defn create-team [start roles]
