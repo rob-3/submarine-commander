@@ -1,7 +1,9 @@
 (ns dev.rob-3.captain-sonar.captain-sonar
   (:gen-class)
   (:require
-   [dev.rob-3.captain-sonar.actions :refer [teams]]
+   [dev.rob-3.captain-sonar.actions :refer [make-move teams]]
+   [dev.rob-3.captain-sonar.game-engine :refer [create-game]]
+   [dev.rob-3.captain-sonar.maps :as maps]
    [cheshire.core :as json]
    [clojure.core.async :refer [<!! >!!] :as a]
    [clojure.string :as string]
@@ -9,7 +11,8 @@
    [hiccup.page :as page]
    [hiccup2.core :as h]
    [ring.adapter.jetty :as jetty]
-   [ring.middleware.cookies :as middleware]
+   [ring.middleware.cookies :refer [wrap-cookies]]
+   [ring.middleware.params :refer [wrap-params]]
    [ring.util.codec :refer [form-decode]]
    [ring.websocket :as ws]))
 
@@ -54,37 +57,80 @@
 ;; That way we can prevent people from joining multiple rooms by mistake.
 (defonce state (atom {:rooms {} :users {}}))
 
-(defn room-html [room-id player-id {:keys [admin players]}]
+(defmulti player-html :role)
+(defmethod player-html :captain [_]
+  [[:button "North"]
+   [:button "East"]
+   [:button "South"]
+   [:button "West"]])
+(defmethod player-html :radio-operator [_] "radio-operator")
+(defmethod player-html :first-mate [_] "first-mate")
+(defmethod player-html :engineer [{room-id :room-id}]
+  ;; FIXME componentize
+  [:div {:style {:display "grid"
+                 :grid-template-columns "50px 50px 50px"
+                 :grid-template-rows "auto"
+                 :grid-template-areas (str "\".   north    .\""
+                                           "\"west  .  east \""
+                                           "\".   south    .\"")}}
+   ;; FIXME componentize
+   [:button {:style {:grid-area "north"}
+             :ws-send ""
+             :hx-vals (json/generate-string {"event" "captain-north" "room" room-id})} "North"]
+   [:button {:style {:grid-area "east"}
+             :ws-send ""
+             :hx-vals (json/generate-string {"event" "captain-east" "room" room-id})} "East"]
+   [:button {:style {:grid-area "south"}
+             :ws-send ""
+             :hx-vals (json/generate-string {"event" "captain-south" "room" room-id})} "South"]
+   [:button {:style {:grid-area "west"}
+             :ws-send ""
+             :hx-vals (json/generate-string {"event" "captain-west" "room" room-id})} "West"]])
+
+(defn game-html [player-id game room-id]
+  [:div#app.container
+   ;; FIXME should probably be a lens here
+   (let [player-role (get-in game [:players player-id 1])]
+     (player-html {:role player-role :room-id room-id}))])
+
+(defn room-html [room-id player-id {:keys [admin players game]}]
   {:pre [room-id player-id (not (nil? admin)) players]}
-  (let [playing? (contains? players player-id)
+  (let [started? (boolean game)
+        playing? (contains? players player-id)
         admin? (= player-id admin)]
-    [:div#app.container (when (not playing?) {:ws-send ""
-                                              :hx-vals (json/generate-string {"event" "join-room"
-                                                                              "room" room-id})
-                                              :hx-trigger "load delay:1ms"})
-     (when admin? [:div "You are the admin. (" player-id ")"])
-     (for [player players]
-       (if (= player player-id)
-         (when-not admin? [:div (str "You (" player ") are in the room.")])
-         [:div (str "Player " player " is in the room.")]))
-     (when admin?
-       [:form.form
-        {:style "padding: 1em"}
-        (for [team teams
-              :let [team-name (string/capitalize (name team))]]
-          (list
-           [:h1.title.two-col (str team-name " Team")]
-           (for [[role role-id] {"Captain" "captain"
-                                 "First Mate" "first-mate"
-                                 "Radio Operator" "radio-operator"
-                                 "Engineer" "engineer"}]
-             (let [id (str team "-" role-id "-select")]
-               (list
-                [:label {:for id} role]
-                [:select {:id id :name role-id}
-                 (for [player players] [:option {:value player} player])])))))
-        [:input.button.submit.two-col {:type "submit" :value "Start Game"}]])
-     (when playing? [:button.button {:hx-push-url "true" :hx-post "/leave-room"} "Leave Room"])]))
+    (def started? started?)
+    (if started? (game-html player-id game room-id)
+        [:div#app.container (when (not playing?) {:ws-send ""
+                                                  :hx-vals (json/generate-string {"event" "join-room"
+                                                                                  "room" room-id})
+                                                  :hx-trigger "load delay:1ms"})
+         (when admin? [:div "You are the admin. (" player-id ")"])
+         (for [player players]
+           (if (= player player-id)
+             (when-not admin? [:div (str "You (" player ") are in the room.")])
+             [:div (str "Player " player " is in the room.")]))
+         (when admin?
+           [:form.form
+            {:style "padding: 1em"
+             :hx-vals (json/generate-string {"event" "start-game" "room" room-id})
+             :ws-send ""}
+            (for [team teams
+                  :let [color (name team)
+                        team-name (string/capitalize color)]]
+              (list
+               [:h1.title.two-col (str team-name " Team")]
+               (for [[role role-id] {"Captain" "captain"
+                                     "First Mate" "first-mate"
+                                     "Radio Operator" "radio-operator"
+                                     "Engineer" "engineer"}]
+                 (let [id (str color "-" role-id "-select")
+                       name (str color "-" role-id)]
+                   (list
+                    [:label {:for id} role]
+                    [:select {:id id :name name}
+                     (for [player players] [:option {:value player} player])])))))
+            [:input.button.submit.two-col {:type "submit" :value "Start Game"}]])
+         (when playing? [:button.button {:hx-push-url "true" :hx-post "/leave-room"} "Leave Room"])])))
 
 (defn add-to-room [state room player]
   {:pre [state room player]}
@@ -155,12 +201,51 @@
                     [:h1.title "Captain Sonar"]
                     (room-html room-id player-id room)])))
 
+(defn start-game [room-id team->roles]
+  (let [game (create-game :teams [{:color :team/blue
+                                   ;; FIXME this should not be hard-coded.
+                                   ;; We need an extra screen where each captain chooses
+                                   ;; their location
+                                   :start [1 1]
+                                   :roles (:team/blue team->roles)}
+                                  {:color :team/red
+                                   :start [1 1]
+                                   :roles (:team/red team->roles)}])
+        player->team+role (reduce (fn [acc [k v]] (assoc acc v k))
+                                  {}
+                                  team->roles)
+    ;; save user data for game and create object
+        state' (swap! state assoc-in [:rooms room-id :game] game)]
+    ;; set up game map in global state
+    ;; ask captain for starting location
+    (broadcast-update! state' room-id)))
+
+(defn get-team [player-id]
+  (let [state @state
+        room-id (get-in state [:users player-id :room])
+        [team _] (get-in state [:rooms room-id :game :players player-id])]
+    team))
+
 (defn on-message [_socket message player-id]
   (let [{event "event" room-id "room"} (json/parse-string message)]
-    (prn message)
+    (def message message)
     (case event
       "join-room" (linearize! (fn [] (let [state' (swap! state #(join-room % room-id player-id))]
-                                       (broadcast-update! state' room-id)))))))
+                                       (broadcast-update! state' room-id))))
+      "start-game" (let [teams
+                         ;; TODO we should eventually do some common sense checks to,
+                         ;; for example, avoid a player who is on both teams.
+                         (->> message
+                              json/parse-string
+                              (reduce (fn [acc [k v]]
+                                        (let [[color role] (string/split k #"-" 2)]
+                                          (if (and role (re-find #"^captain|first-mate|radio-operator|engineer$" role))
+                                            (assoc-in acc [(keyword "team" color) (keyword role)] v)
+                                            acc)))
+                                      {}))]
+                     (start-game room-id teams))
+      "captain-north" (let []
+                        (swap! state (fn [old-state] old-state))))))
 
 (defn ws-handler [request]
   (if (ws/upgrade-request? request)
@@ -213,6 +298,9 @@
                "hx-redirect" "/"}
      :body nil}))
 
+(defn start-game-handler [request]
+  {:status 200 :headers {} :body "hi"})
+
 (defn app [request]
   (case [(:request-method request) (:uri request)]
     [:get "/"] (index-handler request)
@@ -226,6 +314,7 @@
                     :body (str (room-handler request))}
     [:get "/ws"] (ws-handler request)
     [:post "/leave-room"] (leave-room-handler request)
+    [:post "/start-game"] (#(start-game-handler request))
     {:status 404 :headers {"vary" "hx-request" "cache-control" "no-store"} :body (html [:h1 "404 Not Found"])}))
 
 (defn make-id-cookie []
@@ -255,7 +344,10 @@
         (try (f)
              (catch Exception e (str "caught: " (.getMessage e))))
         (recur))))
-  (jetty/run-jetty (middleware/wrap-cookies (user-id-middleware #(app %))) {:port 3000 :join? false}))
+  (jetty/run-jetty (-> #(app %)
+                       user-id-middleware
+                       wrap-cookies
+                       wrap-params) {:port 3000 :join? false}))
 
 (comment
   (do
