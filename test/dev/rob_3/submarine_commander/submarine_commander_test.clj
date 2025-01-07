@@ -3,6 +3,7 @@
    [clojure.test :refer [deftest is run-tests testing]]
    [dev.rob-3.submarine-commander.actions :refer [tick]]
    [dev.rob-3.submarine-commander.game-engine :refer [create-game]]
+   [dev.rob-3.submarine-commander.maps :as maps]
    [dev.rob-3.submarine-commander.systems :refer [broken?]]))
 
 (deftest system-breakdown-functions
@@ -28,6 +29,76 @@
                                 :first-mate "3357833D-7F68-4A5D-B45F-EF5028B15395"
                                 :engineer "085CC641-5306-4713-826E-588CDEED64F6"
                                 :radio-operator "B1A8E5F2-326D-4FB5-9F16-E47A63F2603B"}}]))
+
+(deftest test-tick
+  (let [game (-> (new-game)
+                 (tick :action :order/captain
+                       :direction :east
+                       :team :team/blue)
+                 (tick :action :order/first-mate
+                       :system :torpedo
+                       :team :team/blue)
+                 (tick :action :order/engineer
+                       :breakdown :yellow6
+                       :team :team/blue))]
+    (is (= (last (get-in game [:teams :team/blue :trail]))
+           [2 1]))))
+
+(defn integration-test [& {:keys [setup map moves]}]
+  (loop [game (new-game)
+         [move & moves] moves]
+    (if (nil? move)
+      game
+      (let [[color action data1 data2] move]
+        (case action
+          (:north
+           :south
+           :east
+           :west) (-> game
+                      (tick :action :order/captain
+                            :direction action
+                            :team color)
+                      (tick :action :order/first-mate
+                            :system data1
+                            :team color)
+                      (tick :action :order/engineer
+                            :breakdown data2
+                            :team color))
+          :torpedo (tick game
+                         :action :order/torpedo
+                         :target data1
+                         :team color)
+          :mine (tick game
+                      :action :order/mine
+                      :target data1
+                      :team color)
+          :detonate (tick game
+                          :action :order/detonate
+                          :mine data1
+                          :team color)
+          :sonar (tick game
+                       :action :order/sonar
+                       :team color)
+          :drone (tick game
+                       :action :order/drone
+                       :guess data1
+                       :team color)
+          :silence (tick game
+                         :action :order/silence
+                         :move data1
+                         :team color))))))
+
+(comment
+  {:starts {:blue [1 1] :red [15 15]}
+   :map maps/alpha
+   :moves [:blue :east :torpedo :yellow6
+           ;; FIXME finish test format
+           [:blue :south :torpedo]
+           [:blue :west :torpedo]
+           [:red :west :silence]
+           [:red :drone :sector/5]
+           [:red :silence [:east 3]]
+           [:blue :torpedo [12 12]]]})
 
 (deftest integration
   (let [game (-> (new-game)
