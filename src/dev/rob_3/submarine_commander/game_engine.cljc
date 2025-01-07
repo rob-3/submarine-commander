@@ -68,6 +68,9 @@
                 :south #{}
                 :east #{}}
    :surfaced false
+   :orders {:captain nil
+            :first-mate nil
+            :engineer nil}
    :mines #{}
    :roles roles})
 
