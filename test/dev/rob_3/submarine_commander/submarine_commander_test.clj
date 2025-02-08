@@ -49,56 +49,48 @@
          [move & moves] moves]
     (if (nil? move)
       game
-      (let [[color action data1 data2] move]
-        (case action
-          (:north
-           :south
-           :east
-           :west) (-> game
-                      (tick :action :order/captain
-                            :direction action
-                            :team color)
-                      (tick :action :order/first-mate
-                            :system data1
-                            :team color)
-                      (tick :action :order/engineer
-                            :breakdown data2
-                            :team color))
-          :torpedo (tick game
-                         :action :order/torpedo
-                         :target data1
-                         :team color)
-          :mine (tick game
-                      :action :order/mine
-                      :target data1
-                      :team color)
-          :detonate (tick game
-                          :action :order/detonate
-                          :mine data1
-                          :team color)
-          :sonar (tick game
-                       :action :order/sonar
-                       :team color)
-          :drone (tick game
-                       :action :order/drone
-                       :guess data1
-                       :team color)
-          :silence (tick game
-                         :action :order/silence
-                         :move data1
-                         :team color))))))
-
-(comment
-  {:starts {:blue [1 1] :red [15 15]}
-   :map maps/alpha
-   :moves [:blue :east :torpedo :yellow6
-           ;; FIXME finish test format
-           [:blue :south :torpedo]
-           [:blue :west :torpedo]
-           [:red :west :silence]
-           [:red :drone :sector/5]
-           [:red :silence [:east 3]]
-           [:blue :torpedo [12 12]]]})
+      (let [[color action data1 data2] move
+            color (keyword "team" (name color))
+            game (case action
+                   (:north
+                    :south
+                    :east
+                    :west) (-> game
+                               (tick :action :order/captain
+                                     :direction action
+                                     :team color)
+                               (tick :action :order/first-mate
+                                     :system data1
+                                     :team color)
+                               (tick :action :order/engineer
+                                     :breakdown data2
+                                     :team color))
+                   :torpedo (tick game
+                                  :action :order/torpedo
+                                  :target data1
+                                  :team color)
+                   :mine (tick game
+                               :action :order/mine
+                               :target data1
+                               :team color)
+                   :detonate (tick game
+                                   :action :order/detonate
+                                   :mine data1
+                                   :team color)
+                   :sonar (tick game
+                                :action :order/sonar
+                                :team color
+                                :target-team data1)
+                   :drone (tick game
+                                :action :order/drone
+                                :target-team data1
+                                :guess data2
+                                :team color)
+                   :silence (tick game
+                                  :action :order/silence
+                                  :move data1
+                                  :team color))]
+        (recur game moves)))))
 
 (deftest integration
   (let [game (-> (new-game)
@@ -113,6 +105,21 @@
                        :team :team/blue))]
     (is (= (last (get-in game [:teams :team/blue :trail]))
            [2 1]))))
+
+(deftest integration2
+  (let [game (integration-test :starts {:blue [1 1] :red [15 15]}
+                               :map maps/alpha
+                               :moves [[:blue :east :torpedo :yellow6]
+                                       ;; FIXME finish test format
+                                       [:blue :south :torpedo :yellow4]
+                                       [:blue :west :torpedo :yellow1]
+                                       [:red :west :drone :yellow1]
+                                       [:red :west :drone :red1]
+                                       [:red :west :drone :reactor1]
+                                       [:red :west :drone :reactor2]
+                                       [:red :drone :team/blue :sector/five]])
+        orders (get-in game [:teams :team/red :orders])]
+    (is (map? orders))))
 
 (comment
   (run-tests 'dev.rob-3.submarine-commander.submarine-commander-test))

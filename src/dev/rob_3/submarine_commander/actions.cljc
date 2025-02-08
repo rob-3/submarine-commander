@@ -72,8 +72,8 @@
       (< current-charge max-charge) (update current-charges system-to-charge inc)
       :else :err/illegal-system-charge)))
 
-(defn attempt-move
-  [{:keys [trail systems breakdowns orders] :as state}]
+(defn attempt-move [{:keys [trail systems breakdowns orders] :as state}]
+  {:pre [trail systems breakdowns orders]}
   ;; FIXME pass map via game state
   (let [direction (:captain orders)
         system-to-charge (:first-mate orders)
@@ -212,11 +212,11 @@
   {:pre [(team? team-activating)
          (system? system)]}
   (let [{:keys [systems breakdowns]} (get-in game-state [:teams team-activating])
-        charged? (< (system systems) (system max-system-charges))
+        charged? (= (system systems) (system max-system-charges))
         disabled? (broken? breakdowns (system->color system))]
     (cond
-      (not charged?) :system-uncharged
-      disabled? :system-down
+      (not charged?) :error/system-uncharged
+      disabled? :error/system-down
       :else (as-> game-state game-state
               (assoc-in game-state [:teams team-activating :systems system] 0)
               (case system
@@ -252,15 +252,29 @@
 (defn update-engineer-orders [orders breakdown]
   (assoc orders :engineer breakdown))
 
-(defn tick [game-state & {:keys [team action direction system breakdown]}]
-  {:pre [(or direction system breakdown) team]
-   :post [%]}
+(defn tick [game-state & {:keys [team action direction system breakdown mine guess target target-team move]}]
   (let [team-state (get-in game-state [:teams team])
         orders (:orders team-state)
         orders' (case action
                   :order/captain (update-captains-orders orders direction)
                   :order/first-mate (update-firstmate-orders orders system)
-                  :order/engineer (update-engineer-orders orders breakdown))
+                  :order/engineer (update-engineer-orders orders breakdown)
+                  :order/mine (activate-system game-state {:system :mine
+                                                           :team-activating team
+                                                           :params {:location mine}})
+                  :order/detonate (detonate-mine game-state team mine)
+                  :order/torpedo (activate-system game-state {:system :torpedo
+                                                              :team-activating team
+                                                              :params {:target target}})
+                  :order/drone (activate-system game-state {:system :drone
+                                                            :team-activating team
+                                                            :params {:target-team target-team :guessed-sector guess}})
+                  :order/sonar (activate-system game-state {:system :sonar
+                                                            :team-activating team
+                                                            :params {:target-team target-team}})
+                  :order/silence (activate-system game-state {:system :silence
+                                                              :team-activating team
+                                                              :params {:direction move}}))
         ts' (attempt-move (assoc team-state :orders orders'))]
     (if (err? ts')
       game-state
