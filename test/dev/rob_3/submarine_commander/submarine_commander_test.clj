@@ -121,5 +121,14 @@
         orders (get-in game [:teams :team/red :orders])]
     (is (map? orders))))
 
+(deftest system-charges
+  (let [game (integration-test :starts {:blue [1 1] :red [15 15]}
+                               :map maps/alpha
+                               :moves [[:blue :east :torpedo :yellow6]
+                                       [:blue :east :torpedo :red6]
+                                       [:blue :east :torpedo :reactor6]])
+        charges (get-in game [:teams :team/blue :systems :torpedo])]
+    (is (= 3 charges))))
+
 (comment
   (run-tests 'dev.rob-3.submarine-commander.submarine-commander-test))
