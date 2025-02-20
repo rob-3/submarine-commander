@@ -215,8 +215,8 @@
         charged? (= (system systems) (system max-system-charges))
         disabled? (broken? breakdowns (system->color system))]
     (cond
-      (not charged?) :error/system-uncharged
-      disabled? :error/system-down
+      (not charged?) :err/system-uncharged
+      disabled? :err/system-down
       :else (as-> game-state game-state
               (assoc-in game-state [:teams team-activating :systems system] 0)
               (case system
