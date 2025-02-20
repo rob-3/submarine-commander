@@ -130,5 +130,15 @@
         charges (get-in game [:teams :team/blue :systems :torpedo])]
     (is (= 3 charges))))
 
+(deftest wrong-path
+  (let [game (integration-test :starts {:blue [1 1] :red [15 15]}
+                               :map maps/alpha
+                               :moves [[:blue :east :torpedo :yellow6]
+                                       [:blue :south :torpedo :yellow4]])
+        blue-location (last (get-in game [:teams :team/blue :trail]))
+        blue-torpedo-charge (get-in game [:teams :team/blue :systems :torpedo])]
+    (is (= [2 1] blue-location))
+    (is (= 1 blue-torpedo-charge))))
+
 (comment
   (run-tests 'dev.rob-3.submarine-commander.submarine-commander-test))
