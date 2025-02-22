@@ -34,7 +34,7 @@
 (defn neighbors [map coord]
   (vec (for [space (adj-spaces coord)
              :when (valid-space? map space)]
-         space)))
+         {:cost 1 :node space})))
 
 (comment
   (neighbors alpha [2 3]))

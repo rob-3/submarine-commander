@@ -16,22 +16,24 @@
     (is (not (broken? {:west #{:red} :north #{} :south #{:red1} :east #{:green1}} :yellow)))
     (is (not (broken? {:west #{:red} :north #{:yellow1 :red1} :south #{:yellow1} :east #{}} :green)))))
 
-(defn new-game []
-  (create-game :teams [{:color :team/blue
-                        :start [1 1]
-                        :roles {:captain "52A2FAEF-4371-42D2-ADD4-9F5EBF545728"
-                                :first-mate "160CE7D8-47A1-471A-A447-D8080B25A5C6"
-                                :engineer "047C4F3D-C11A-4CF3-BFC1-037EB554F011"
-                                :radio-operator "A53A0B18-DEFC-45D6-A438-0B5083AA0536"}}
-                       {:color :team/red
-                        :start [15 15]
-                        :roles {:captain "034F3745-2C2B-41FD-9C3D-7021D487C55F"
-                                :first-mate "3357833D-7F68-4A5D-B45F-EF5028B15395"
-                                :engineer "085CC641-5306-4713-826E-588CDEED64F6"
-                                :radio-operator "B1A8E5F2-326D-4FB5-9F16-E47A63F2603B"}}]))
+(defn new-game [starts map]
+  (create-game 
+    :map map
+    :teams [{:color :team/blue
+             :start (:blue starts)
+             :roles {:captain "52A2FAEF-4371-42D2-ADD4-9F5EBF545728"
+                     :first-mate "160CE7D8-47A1-471A-A447-D8080B25A5C6"
+                     :engineer "047C4F3D-C11A-4CF3-BFC1-037EB554F011"
+                     :radio-operator "A53A0B18-DEFC-45D6-A438-0B5083AA0536"}}
+            {:color :team/red
+             :start (:red starts)
+             :roles {:captain "034F3745-2C2B-41FD-9C3D-7021D487C55F"
+                     :first-mate "3357833D-7F68-4A5D-B45F-EF5028B15395"
+                     :engineer "085CC641-5306-4713-826E-588CDEED64F6"
+                     :radio-operator "B1A8E5F2-326D-4FB5-9F16-E47A63F2603B"}}]))
 
 (deftest test-tick
-  (let [game (-> (new-game)
+  (let [game (-> (new-game {:blue [1 1] :red [15 15]} maps/alpha)
                  (tick :action :order/captain
                        :direction :east
                        :team :team/blue)
@@ -44,8 +46,10 @@
     (is (= (last (get-in game [:teams :team/blue :trail]))
            [2 1]))))
 
-(defn integration-test [& {:keys [setup map moves]}]
-  (loop [game (new-game)
+(defn integration-test [& {:keys [starts map moves]
+                           :or {map maps/alpha
+                                starts {:blue [1 1] :red [15 15]}}}]
+  (loop [game (new-game starts map)
          [move & moves] moves]
     (if (nil? move)
       game
@@ -93,7 +97,7 @@
         (recur game moves)))))
 
 (deftest integration
-  (let [game (-> (new-game)
+  (let [game (-> (new-game {:blue [1 1] :red [15 15]} maps/alpha)
                  (tick :action :order/captain
                        :direction :east
                        :team :team/blue)
@@ -107,9 +111,7 @@
            [2 1]))))
 
 (deftest integration2
-  (let [game (integration-test :starts {:blue [1 1] :red [15 15]}
-                               :map maps/alpha
-                               :moves [[:blue :east :torpedo :yellow6]
+  (let [game (integration-test :moves [[:blue :east :torpedo :yellow6]
                                        ;; FIXME finish test format
                                        [:blue :south :torpedo :yellow4]
                                        [:blue :west :torpedo :yellow1]
@@ -122,23 +124,28 @@
     (is (map? orders))))
 
 (deftest system-charges
-  (let [game (integration-test :starts {:blue [1 1] :red [15 15]}
-                               :map maps/alpha
-                               :moves [[:blue :east :torpedo :yellow6]
+  (let [game (integration-test :moves [[:blue :east :torpedo :yellow6]
                                        [:blue :east :torpedo :red6]
                                        [:blue :east :torpedo :reactor6]])
         charges (get-in game [:teams :team/blue :systems :torpedo])]
     (is (= 3 charges))))
 
 (deftest wrong-path
-  (let [game (integration-test :starts {:blue [1 1] :red [15 15]}
-                               :map maps/alpha
-                               :moves [[:blue :east :torpedo :yellow6]
+  (let [game (integration-test :moves [[:blue :east :torpedo :yellow6]
                                        [:blue :south :torpedo :yellow4]])
         blue-location (last (get-in game [:teams :team/blue :trail]))
         blue-torpedo-charge (get-in game [:teams :team/blue :systems :torpedo])]
     (is (= [2 1] blue-location))
     (is (= 1 blue-torpedo-charge))))
+
+(deftest fire-torpedo
+  (let [game (integration-test :starts {:blue [1 1] :red [7 1]}
+                               :moves [[:red :west :torpedo :yellow1]
+                                       [:red :west :torpedo :reactor1]
+                                       [:red :west :torpedo :reactor2]
+                                       [:red :torpedo [1 1]]]) 
+        blue-health (get-in game [:teams :team/blue :health])]
+    (is (= 2 blue-health))))
 
 (comment
   (run-tests 'dev.rob-3.submarine-commander.submarine-commander-test))

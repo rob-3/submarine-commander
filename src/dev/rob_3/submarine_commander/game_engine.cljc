@@ -1,9 +1,11 @@
 (ns dev.rob-3.submarine-commander.game-engine
   (:require
-   [dev.rob-3.submarine-commander.actions :refer [location?]]))
+   [dev.rob-3.submarine-commander.actions :refer [location?]]
+   [dev.rob-3.submarine-commander.maps :as maps]))
 
 (def state
-  {:players {"d0869bad-8696-4405-ab35-8c34b2e96d33" [:team/red :captain]
+  {:map maps/alpha
+   :players {"d0869bad-8696-4405-ab35-8c34b2e96d33" [:team/red :captain]
              "e7e1966d-a54c-4df3-8f54-2162d4c5f8c0" [:team/red :first-mate]
              "2fd7c8be-482f-4ef0-804a-d110d14b7383" [:team/red :radio-operator]
              "798987b4-617a-4534-ba01-ddacc5aa8509" [:team/red :engineer]
@@ -74,7 +76,7 @@
    :mines #{}
    :roles roles})
 
-(defn create-game [& {:keys [teams]}]
+(defn create-game [& {:keys [teams map]}]
   (let [teams' (reduce (fn [acc {:keys [start color roles]}]
                          (assoc acc color (create-team start roles)))
                        {}
@@ -86,20 +88,23 @@
                                              roles)))
                         {}
                         teams)]
-    {:players players
+    {:map map
+     :players players
      :teams teams'
      :events []}))
 
 (comment
-  (create-game :teams [{:color :team/blue
-                        :start [1 1]
-                        :roles {:captain "52A2FAEF-4371-42D2-ADD4-9F5EBF545728"
-                                :first-mate "160CE7D8-47A1-471A-A447-D8080B25A5C6"
-                                :engineer "047C4F3D-C11A-4CF3-BFC1-037EB554F011"
-                                :radio-operator "A53A0B18-DEFC-45D6-A438-0B5083AA0536"}}
-                       {:color :team/red
-                        :start [15 15]
-                        :roles {:captain "034F3745-2C2B-41FD-9C3D-7021D487C55F"
-                                :first-mate "3357833D-7F68-4A5D-B45F-EF5028B15395"
-                                :engineer "085CC641-5306-4713-826E-588CDEED64F6"
-                                :radio-operator "B1A8E5F2-326D-4FB5-9F16-E47A63F2603B"}}]))
+  (create-game 
+    :map maps/alpha
+    :teams [{:color :team/blue
+             :start [1 1]
+             :roles {:captain "52A2FAEF-4371-42D2-ADD4-9F5EBF545728"
+                     :first-mate "160CE7D8-47A1-471A-A447-D8080B25A5C6"
+                     :engineer "047C4F3D-C11A-4CF3-BFC1-037EB554F011"
+                     :radio-operator "A53A0B18-DEFC-45D6-A438-0B5083AA0536"}}
+            {:color :team/red
+             :start [15 15]
+             :roles {:captain "034F3745-2C2B-41FD-9C3D-7021D487C55F"
+                     :first-mate "3357833D-7F68-4A5D-B45F-EF5028B15395"
+                     :engineer "085CC641-5306-4713-826E-588CDEED64F6"
+                     :radio-operator "B1A8E5F2-326D-4FB5-9F16-E47A63F2603B"}}]))

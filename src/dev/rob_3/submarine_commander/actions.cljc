@@ -72,7 +72,7 @@
       (< current-charge max-charge) (update current-charges system-to-charge inc)
       :else :err/illegal-system-charge)))
 
-(defn attempt-move [{:keys [trail systems breakdowns orders] :as state}]
+(defn attempt-move [map {:keys [trail systems breakdowns orders] :as state}]
   {:pre [trail systems breakdowns orders]}
   ;; FIXME pass map via game state
   (let [direction (:captain orders)
@@ -80,7 +80,7 @@
         breakdown (:engineer orders)]
     (if-not (and direction system-to-charge breakdown)
       state
-      (let [trail' (make-move trail direction maps/alpha 1)
+      (let [trail' (make-move trail direction map 1)
             systems' (charge-system system-to-charge systems)
             breakdowns' (breakdown-system breakdown direction breakdowns)]
         (cond
@@ -163,17 +163,17 @@
 ;; * Torpedos cannot move through islands, see official designer ruling at
 ;;   https://boardgamegeek.com/thread/1913121/rule-clarification-torpedomissilesmines
 (defn fire-torpedo [game-state team-firing firing-to]
-  {:pre [(team? team-firing)]}
+  {:pre [(team? team-firing) (location? firing-to)]}
   (let [firing-team-location (last (get-in game-state [:teams team-firing :trail]))
-        in-range? (->> (a* :heuristic-fn maze-distance
-                           :neighbors-fn (partial maps/neighbors maps/alpha)
-                           :start firing-team-location
-                           :finish firing-to)
-                       :cost
-                       (<= 4))]
-    (if (not in-range?)
-      :err/illegal-out-of-range
-      (explosion-at game-state firing-to))))
+        in-range? (-> (a* :heuristic-fn maze-distance
+                          :neighbors-fn (partial maps/neighbors (:map game-state))
+                          :start firing-team-location
+                          :finish firing-to)
+                      :cost
+                      (<= 4))]
+     (if (not in-range?)
+       :err/illegal-out-of-range
+       (explosion-at game-state firing-to))))
 
 (defn use-sonar [game-state team-using team-targeted]
   {:pre [(team? team-using) (team? team-targeted)]}
@@ -199,10 +199,11 @@
                                      :team team-using
                                      :answer are-they-there?})))
 
-(defn use-silence [game-state team-moving direction island-map]
+(defn use-silence [game-state team-moving direction]
   {:pre [(team? team-moving)
          (#{:north :south :east :west} direction)]}
-  (let [trail (get-in game-state [:teams team-moving :trail])
+  (let [island-map (:map game-state)
+        trail (get-in game-state [:teams team-moving :trail])
         trail' (make-move trail direction island-map 4)]
     (if (keyword? trail')
       trail'
@@ -221,8 +222,8 @@
               (assoc-in game-state [:teams team-activating :systems system] 0)
               (case system
                 :torpedo (do
-                           (assert (location? (:location params)))
-                           (fire-torpedo game-state team-activating (:location params)))
+                           (assert (location? (:target params)))
+                           (fire-torpedo game-state team-activating (:target params)))
                 :mine (do
                         (assert (location? (:location params)))
                         (lay-mine game-state team-activating (:location params)))
@@ -236,7 +237,7 @@
                 ;; it should probably live in the game state somewhere
                 :silence (do
                            (assert (#{:north :east :south :west} (:direction params)))
-                           (use-silence game-state team-activating (:direction params) maps/alpha)))))))
+                           (use-silence game-state team-activating (:direction params))))))))
 
 (defn update-captains-orders [orders direction]
   {:pre [(#{:north :south :east :west} direction)]}
@@ -255,30 +256,33 @@
 (defn tick [game-state & {:keys [team action direction system breakdown mine guess target target-team move]}]
   (let [team-state (get-in game-state [:teams team])
         orders (:orders team-state)
-        orders' (case action
-                  :order/captain (update-captains-orders orders direction)
-                  :order/first-mate (update-firstmate-orders orders system)
-                  :order/engineer (update-engineer-orders orders breakdown)
-                  :order/mine (activate-system game-state {:system :mine
-                                                           :team-activating team
-                                                           :params {:location mine}})
-                  :order/detonate (detonate-mine game-state team mine)
-                  :order/torpedo (activate-system game-state {:system :torpedo
-                                                              :team-activating team
-                                                              :params {:target target}})
-                  :order/drone (activate-system game-state {:system :drone
-                                                            :team-activating team
-                                                            :params {:target-team target-team :guessed-sector guess}})
-                  :order/sonar (activate-system game-state {:system :sonar
-                                                            :team-activating team
-                                                            :params {:target-team target-team}})
-                  :order/silence (activate-system game-state {:system :silence
-                                                              :team-activating team
-                                                              :params {:direction move}}))
-        ts' (attempt-move (assoc team-state :orders orders'))]
+        gs' (case action
+              :order/captain (let [orders' (update-captains-orders orders direction)]
+                               (assoc-in game-state [:teams team :orders] orders'))
+              :order/first-mate (let [orders' (update-firstmate-orders orders system)]
+                                  (assoc-in game-state [:teams team :orders] orders'))
+              :order/engineer (let [orders' (update-engineer-orders orders breakdown)]
+                                (assoc-in game-state [:teams team :orders] orders'))
+              :order/mine (activate-system game-state {:system :mine
+                                                       :team-activating team
+                                                       :params {:location mine}})
+              :order/detonate (detonate-mine game-state team mine)
+              :order/torpedo (activate-system game-state {:system :torpedo
+                                                          :team-activating team
+                                                          :params {:target target}})
+              :order/drone (activate-system game-state {:system :drone
+                                                        :team-activating team
+                                                        :params {:target-team target-team :guessed-sector guess}})
+              :order/sonar (activate-system game-state {:system :sonar
+                                                        :team-activating team
+                                                        :params {:target-team target-team}})
+              :order/silence (activate-system game-state {:system :silence
+                                                          :team-activating team
+                                                          :params {:direction move}}))
+        ts' (attempt-move (:map gs') (get-in gs' [:teams team]))]
     (if (err? ts')
-      game-state
-      (assoc-in game-state [:teams team] ts'))))
+      (assoc gs' :error ts')
+      (assoc-in gs' [:teams team] ts'))))
 
 (comment
   (require '[dev.rob-3.submarine-commander.game-engine :as game-engine])
@@ -300,14 +304,14 @@
                    :engineer nil}
           :surfaced false
           :mines #{}})
-  (attempt-move x)
+  (attempt-move maps/alpha x)
   (surface x)
   (lay-mine game-engine/state :team/red [1 2])
   (explosion-wrt x [2 6])
   (explosion-at game-engine/state [1 2])
   (detonate-mine game-engine/state :team/red [1 2])
   (use-drone game-engine/state :team/red :team/blue 9)
-  (use-silence game-engine/state :team/red :north maps/alpha)
+  (use-silence game-engine/state :team/red :north)
   (tick game-engine/state
         :action :order/captain
         :direction :north
