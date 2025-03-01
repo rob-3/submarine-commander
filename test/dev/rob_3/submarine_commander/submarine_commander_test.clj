@@ -145,7 +145,8 @@
                                        [:red :west :torpedo :reactor2]
                                        [:red :torpedo [1 1]]]) 
         blue-health (get-in game [:teams :team/blue :health])]
-    (is (= 2 blue-health))))
+    (is (= 2 blue-health))
+    (is (nil? (:error game)))))
 
 (comment
   (run-tests 'dev.rob-3.submarine-commander.submarine-commander-test))

@@ -95,7 +95,8 @@
           :else (-> state
                     (assoc :trail trail')
                     (assoc :systems systems')
-                    (assoc :breakdowns breakdowns')))))))
+                    (assoc :breakdowns breakdowns')
+                    (assoc :orders {:captain nil :first-mate nil :engineer nil})))))))
 
 (defn surface [{:keys [surfaced] :as state}]
   (if surfaced
