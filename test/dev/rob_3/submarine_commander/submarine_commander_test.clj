@@ -148,5 +148,28 @@
     (is (= 2 blue-health))
     (is (nil? (:error game)))))
 
+(deftest illegal-lay-mine
+  (let [game (integration-test :moves [[:blue :east :mine :yellow6]
+                                       [:blue :east :mine :reactor5]
+                                       [:blue :east :mine :reactor6]
+                                       ;; flipped x/y from what is possible
+                                       [:blue :mine [2 4]]])
+        blue-mines (get-in game [:teams :team/blue :mines])
+        blue-mine-charge (get-in game [:teams :team/blue :systems :mine])]
+    (is (= blue-mines #{}))
+    (is (= blue-mine-charge 3))
+    (is (:error game))))
+
+(deftest lay-a-mine
+  (let [game (integration-test :moves [[:blue :east :mine :yellow6]
+                                       [:blue :east :mine :reactor5]
+                                       [:blue :east :mine :reactor6]
+                                       [:blue :mine [4 2]]])
+        blue-mines (get-in game [:teams :team/blue :mines])
+        blue-mine-charge (get-in game [:teams :team/blue :systems :mine])]
+    (is (= blue-mines #{[4 2]}))
+    (is (= blue-mine-charge 0))
+    (is (nil? (:error game)))))
+
 (comment
   (run-tests 'dev.rob-3.submarine-commander.submarine-commander-test))

@@ -266,7 +266,7 @@
                                 (assoc-in game-state [:teams team :orders] orders'))
               :order/mine (activate-system game-state {:system :mine
                                                        :team-activating team
-                                                       :params {:location mine}})
+                                                       :params {:location target}})
               :order/detonate (detonate-mine game-state team mine)
               :order/torpedo (activate-system game-state {:system :torpedo
                                                           :team-activating team
@@ -280,6 +280,9 @@
               :order/silence (activate-system game-state {:system :silence
                                                           :team-activating team
                                                           :params {:direction move}}))
+        gs' (if (err? gs')
+              (assoc game-state :error gs')
+              gs')
         ts' (attempt-move (:map gs') (get-in gs' [:teams team]))]
     (if (err? ts')
       (assoc gs' :error ts')
