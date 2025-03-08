@@ -2,6 +2,7 @@
   (:require
    [dev.rob-3.submarine-commander.a-star :refer [a* maze-distance] :as a-star]
    [dev.rob-3.submarine-commander.error :refer [err?]]
+   [dev.rob-3.submarine-commander.lenses :refer [location]]
    [dev.rob-3.submarine-commander.maps :as maps]
    [dev.rob-3.submarine-commander.systems :refer [broken?]]))
 
@@ -165,7 +166,7 @@
 ;;   https://boardgamegeek.com/thread/1913121/rule-clarification-torpedomissilesmines
 (defn fire-torpedo [game-state team-firing firing-to]
   {:pre [(team? team-firing) (location? firing-to)]}
-  (let [firing-team-location (last (get-in game-state [:teams team-firing :trail]))
+  (let [firing-team-location (location game-state team-firing)
         in-range? (-> (a* :heuristic-fn maze-distance
                           :neighbors-fn (partial maps/neighbors (:map game-state))
                           :start firing-team-location

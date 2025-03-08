@@ -1,4 +1,6 @@
-(ns dev.rob-3.submarine-commander.lenses)
+(ns dev.rob-3.submarine-commander.lenses 
+  (:require
+   [dev.rob-3.submarine-commander.actions :refer [team?]]))
 
 (defn blue-trail [gs]
   (get-in gs [:teams :team/blue :trail]))
@@ -17,3 +19,14 @@
 
 (defn blue-mine-charge [gs]
   (get-in gs [:teams :team/blue :systems :mine]))
+
+(defn blue-location [gs]
+  (last (blue-trail gs)))
+
+(defn trail [gs team]
+  {:pre [(team? team)]}
+  (get-in gs [:teams team :trail]))
+
+(defn location [gs team]
+  {:pre [(team? team)]}
+  (last (trail gs team)))

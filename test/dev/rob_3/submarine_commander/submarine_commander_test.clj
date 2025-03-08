@@ -3,9 +3,9 @@
    [clojure.test :refer [deftest is run-tests testing]]
    [dev.rob-3.submarine-commander.actions :refer [tick]]
    [dev.rob-3.submarine-commander.game-engine :refer [create-game]]
-   [dev.rob-3.submarine-commander.lenses :refer [blue-health blue-mine-charge
-                                                 blue-mines blue-torp-charge
-                                                 blue-trail red-orders]]
+   [dev.rob-3.submarine-commander.lenses :refer [blue-health blue-location
+                                                 blue-mine-charge blue-mines
+                                                 blue-torp-charge red-orders]]
    [dev.rob-3.submarine-commander.maps :as maps]
    [dev.rob-3.submarine-commander.systems :refer [broken?]]))
 
@@ -36,18 +36,17 @@
                      :radio-operator "B1A8E5F2-326D-4FB5-9F16-E47A63F2603B"}}]))
 
 (deftest test-tick
-  (let [game (-> (new-game {:blue [1 1] :red [15 15]} maps/alpha)
-                 (tick :action :order/captain
-                       :direction :east
-                       :team :team/blue)
-                 (tick :action :order/first-mate
-                       :system :torpedo
-                       :team :team/blue)
-                 (tick :action :order/engineer
-                       :breakdown :yellow6
-                       :team :team/blue))]
-    (is (= (last (blue-trail game))
-           [2 1]))))
+  (let [g (-> (new-game {:blue [1 1] :red [15 15]} maps/alpha)
+              (tick :action :order/captain
+                    :direction :east
+                    :team :team/blue)
+              (tick :action :order/first-mate
+                    :system :torpedo
+                    :team :team/blue)
+              (tick :action :order/engineer
+                    :breakdown :yellow6
+                    :team :team/blue))]
+    (is (= (blue-location g) [2 1]))))
 
 (defn integration-test [& {:keys [starts map moves]
                            :or {map maps/alpha
@@ -100,18 +99,17 @@
         (recur game moves)))))
 
 (deftest integration
-  (let [game (-> (new-game {:blue [1 1] :red [15 15]} maps/alpha)
-                 (tick :action :order/captain
-                       :direction :east
-                       :team :team/blue)
-                 (tick :action :order/first-mate
-                       :system :torpedo
-                       :team :team/blue)
-                 (tick :action :order/engineer
-                       :breakdown :yellow6
-                       :team :team/blue))]
-    (is (= (last (blue-trail game))
-           [2 1]))))
+  (let [g (-> (new-game {:blue [1 1] :red [15 15]} maps/alpha)
+              (tick :action :order/captain
+                    :direction :east
+                    :team :team/blue)
+              (tick :action :order/first-mate
+                    :system :torpedo
+                    :team :team/blue)
+              (tick :action :order/engineer
+                    :breakdown :yellow6
+                    :team :team/blue))]
+    (is (= (blue-location g) [2 1]))))
 
 (deftest integration2
   (let [game (integration-test :moves [[:blue :east :torpedo :yellow6]
@@ -134,12 +132,10 @@
     (is (= 3 charges))))
 
 (deftest wrong-path
-  (let [game (integration-test :moves [[:blue :east :torpedo :yellow6]
-                                       [:blue :south :torpedo :yellow4]])
-        blue-location (last (blue-trail game))
-        blue-torpedo-charge (blue-torp-charge game)]
-    (is (= [2 1] blue-location))
-    (is (= 1 blue-torpedo-charge))))
+  (let [g (integration-test :moves [[:blue :east :torpedo :yellow6]
+                                    [:blue :south :torpedo :yellow4]])]
+    (is (= [2 1] (blue-location g)))
+    (is (= 1 (blue-torp-charge g)))))
 
 (deftest fire-torpedo
   (let [game (integration-test :starts {:blue [1 1] :red [7 1]}
