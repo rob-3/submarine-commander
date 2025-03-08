@@ -11,8 +11,8 @@
 (defn blue-torp-charge [gs]
   (get-in gs [:teams :team/blue :systems :torpedo]))
 
-(defn blue-health [gs]
-  (get-in gs [:teams :team/blue :health]))
+(defn health [gs team]
+  (get-in gs [:teams team :health]))
 
 (defn blue-mines [gs]
   (get-in gs [:teams :team/blue :mines]))
@@ -30,3 +30,8 @@
 (defn location [gs team]
   {:pre [(team? team)]}
   (last (trail gs team)))
+
+(defn mines [gs team]
+  {:pre [(team? team)]}
+  (get-in gs [:teams team :mines]))
+  

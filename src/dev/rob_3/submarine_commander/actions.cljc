@@ -104,11 +104,17 @@
     :err/illegal-redundant-surface
     (assoc state :surfaced true)))
 
-(defn within-n? [[x y] [x' y'] n]
-  (<= (+ (abs (- x x')) (abs (- y y'))) n))
-
 (defn adjacent? [location1 location2]
-  (within-n? location1 location2 1))
+  (let [[x1 y1] location1
+        possible #{[(inc x1) y1]
+                   [x1 (inc y1)]
+                   [(inc x1) (inc y1)]
+                   [(dec x1) y1]
+                   [x1 (dec y1)]
+                   [(dec x1) (dec y1)]
+                   [(inc x1) (dec y1)]
+                   [(dec x1) (inc y1)]}]
+    (contains? possible location2)))
 
 ;; Rulings:
 ;; * You _can_ lay a mine diagonally.
@@ -132,9 +138,10 @@
   (let [target-location (last (:trail sub-state))
         direct-hit? (= explosion-location target-location)
         hit? (adjacent? explosion-location target-location)]
-    (cond-> sub-state
-      direct-hit? (update :health dec)
-      hit? (update :health dec))))
+    (cond
+      direct-hit? (update sub-state :health #(- % 2))
+      hit? (update sub-state :health dec)
+      :else sub-state)))
 
 (defn explosion-at
   "Explode at a location, damaging all subs and triggering any other state 

@@ -3,9 +3,10 @@
    [clojure.test :refer [deftest is run-tests testing]]
    [dev.rob-3.submarine-commander.actions :refer [tick]]
    [dev.rob-3.submarine-commander.game-engine :refer [create-game]]
-   [dev.rob-3.submarine-commander.lenses :refer [blue-health blue-location
+   [dev.rob-3.submarine-commander.lenses :refer [blue-location
                                                  blue-mine-charge blue-mines
-                                                 blue-torp-charge red-orders]]
+                                                 blue-torp-charge health mines
+                                                 red-orders]]
    [dev.rob-3.submarine-commander.maps :as maps]
    [dev.rob-3.submarine-commander.systems :refer [broken?]]))
 
@@ -143,7 +144,7 @@
                                        [:red :west :torpedo :reactor1]
                                        [:red :west :torpedo :reactor2]
                                        [:red :torpedo [1 1]]]) 
-        blue-health (blue-health game)]
+        blue-health (health game :team/blue)]
     (is (= 2 blue-health))
     (is (nil? (:error game)))))
 
@@ -165,6 +166,19 @@
     (is (= (blue-mines g) #{[4 2]}))
     (is (= (blue-mine-charge g) 0))
     (is (nil? (:error g)))))
+
+(deftest detonate-mine
+  (let [g (integration-test
+            :starts {:blue [1 1] :red [5 2]}
+            :moves [[:blue :east :mine :yellow6]
+                    [:blue :east :mine :reactor5]
+                    [:blue :east :mine :reactor6]
+                    [:blue :mine [5 2]]
+                    [:blue :east :torpedo :green5]
+                    [:blue :detonate [5 2]]])]
+    (is (= (health g :team/blue) 3))
+    (is (= (health g :team/red) 2))
+    (is (= (mines g :team/blue) #{}))))
 
 (comment
   (run-tests 'dev.rob-3.submarine-commander.submarine-commander-test))
