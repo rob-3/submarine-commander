@@ -5,8 +5,7 @@
    [dev.rob-3.submarine-commander.game-engine :refer [create-game]]
    [dev.rob-3.submarine-commander.lenses :refer [blue-location
                                                  blue-mine-charge blue-mines
-                                                 blue-torp-charge health mines
-                                                 red-orders]]
+                                                 blue-torp-charge health mines red-orders]]
    [dev.rob-3.submarine-commander.maps :as maps]
    [dev.rob-3.submarine-commander.systems :refer [broken?]]))
 
@@ -179,6 +178,21 @@
     (is (= (health g :team/blue) 3))
     (is (= (health g :team/red) 2))
     (is (= (mines g :team/blue) #{}))))
+
+(deftest illegal-mine-detonation
+  (let [g (integration-test
+            :starts {:blue [1 1] :red [5 2]}
+            :moves [[:blue :east :mine :yellow6]
+                    [:blue :east :mine :reactor5]
+                    [:blue :east :mine :reactor6]
+                    [:blue :mine [5 2]]
+                    [:blue :east :torpedo :green5]
+                    ;; there is no mine here!
+                    [:blue :detonate [2 5]]])]
+    (is (:error g))
+    (is (= (health g :team/blue) 4))
+    (is (= (health g :team/red) 4))
+    (is (= (mines g :team/blue) #{[5 2]}))))
 
 (comment
   (run-tests 'dev.rob-3.submarine-commander.submarine-commander-test))

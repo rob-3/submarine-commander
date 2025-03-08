@@ -35,3 +35,5 @@
   {:pre [(team? team)]}
   (get-in gs [:teams team :mines]))
   
+(defn charge [gs team system]
+  (get-in gs [:teams team :systems system]))
