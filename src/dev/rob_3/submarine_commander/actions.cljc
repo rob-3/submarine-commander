@@ -72,7 +72,7 @@
       (< current-charge max-charge) (update current-charges system-to-charge inc)
       :else :err/illegal-system-charge)))
 
-(defn attempt-move [map {:keys [trail systems breakdowns orders] :as state}]
+(defn attempt-move [game-map {:keys [trail systems breakdowns orders] :as state}]
   {:pre [trail systems breakdowns orders]}
   ;; FIXME pass map via game state
   (let [direction (:captain orders)
@@ -80,7 +80,7 @@
         breakdown (:engineer orders)]
     (if-not (and direction system-to-charge breakdown)
       state
-      (let [trail' (make-move trail direction map 1)
+      (let [trail' (make-move trail direction game-map 1)
             systems' (charge-system system-to-charge systems)
             breakdowns' (breakdown-system breakdown direction breakdowns)]
         (cond

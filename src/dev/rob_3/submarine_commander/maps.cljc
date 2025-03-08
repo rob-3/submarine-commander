@@ -12,9 +12,9 @@
     (boolean (and (<= x-min x x-max)
                   (<= y-min y y-max)))))
 
-(defn- valid-space? [map coord]
-  (and (not (contains? (:islands map) coord))
-       (within-dimensions? (:dimensions map) coord)))
+(defn- valid-space? [game-map coord]
+  (and (not (contains? (:islands game-map) coord))
+       (within-dimensions? (:dimensions game-map) coord)))
 
 (comment
   (assert (valid-space? alpha [1 1]))
@@ -31,9 +31,9 @@
    [(inc x) y]
    [x (inc y)]])
 
-(defn neighbors [map coord]
+(defn neighbors [game-map coord]
   (vec (for [space (adj-spaces coord)
-             :when (valid-space? map space)]
+             :when (valid-space? game-map space)]
          {:cost 1 :node space})))
 
 (comment
