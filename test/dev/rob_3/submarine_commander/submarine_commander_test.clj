@@ -3,6 +3,9 @@
    [clojure.test :refer [deftest is run-tests testing]]
    [dev.rob-3.submarine-commander.actions :refer [tick]]
    [dev.rob-3.submarine-commander.game-engine :refer [create-game]]
+   [dev.rob-3.submarine-commander.lenses :refer [blue-health blue-mine-charge
+                                                 blue-mines blue-torp-charge
+                                                 blue-trail red-orders]]
    [dev.rob-3.submarine-commander.maps :as maps]
    [dev.rob-3.submarine-commander.systems :refer [broken?]]))
 
@@ -43,7 +46,7 @@
                  (tick :action :order/engineer
                        :breakdown :yellow6
                        :team :team/blue))]
-    (is (= (last (get-in game [:teams :team/blue :trail]))
+    (is (= (last (blue-trail game))
            [2 1]))))
 
 (defn integration-test [& {:keys [starts map moves]
@@ -107,7 +110,7 @@
                  (tick :action :order/engineer
                        :breakdown :yellow6
                        :team :team/blue))]
-    (is (= (last (get-in game [:teams :team/blue :trail]))
+    (is (= (last (blue-trail game))
            [2 1]))))
 
 (deftest integration2
@@ -120,21 +123,21 @@
                                        [:red :west :drone :reactor1]
                                        [:red :west :drone :reactor2]
                                        [:red :drone :team/blue :sector/five]])
-        orders (get-in game [:teams :team/red :orders])]
+        orders (red-orders game)]
     (is (map? orders))))
 
 (deftest system-charges
   (let [game (integration-test :moves [[:blue :east :torpedo :yellow6]
                                        [:blue :east :torpedo :red6]
                                        [:blue :east :torpedo :reactor6]])
-        charges (get-in game [:teams :team/blue :systems :torpedo])]
+        charges (blue-torp-charge game)]
     (is (= 3 charges))))
 
 (deftest wrong-path
   (let [game (integration-test :moves [[:blue :east :torpedo :yellow6]
                                        [:blue :south :torpedo :yellow4]])
-        blue-location (last (get-in game [:teams :team/blue :trail]))
-        blue-torpedo-charge (get-in game [:teams :team/blue :systems :torpedo])]
+        blue-location (last (blue-trail game))
+        blue-torpedo-charge (blue-torp-charge game)]
     (is (= [2 1] blue-location))
     (is (= 1 blue-torpedo-charge))))
 
@@ -144,32 +147,28 @@
                                        [:red :west :torpedo :reactor1]
                                        [:red :west :torpedo :reactor2]
                                        [:red :torpedo [1 1]]]) 
-        blue-health (get-in game [:teams :team/blue :health])]
+        blue-health (blue-health game)]
     (is (= 2 blue-health))
     (is (nil? (:error game)))))
 
 (deftest illegal-lay-mine
-  (let [game (integration-test :moves [[:blue :east :mine :yellow6]
-                                       [:blue :east :mine :reactor5]
-                                       [:blue :east :mine :reactor6]
-                                       ;; flipped x/y from what is possible
-                                       [:blue :mine [2 4]]])
-        blue-mines (get-in game [:teams :team/blue :mines])
-        blue-mine-charge (get-in game [:teams :team/blue :systems :mine])]
-    (is (= blue-mines #{}))
-    (is (= blue-mine-charge 3))
-    (is (:error game))))
+  (let [g (integration-test :moves [[:blue :east :mine :yellow6]
+                                    [:blue :east :mine :reactor5]
+                                    [:blue :east :mine :reactor6]
+                                    ;; flipped x/y from what is possible
+                                    [:blue :mine [2 4]]])]
+    (is (= (blue-mines g) #{}))
+    (is (= (blue-mine-charge g) 3))
+    (is (:error g))))
 
 (deftest lay-a-mine
-  (let [game (integration-test :moves [[:blue :east :mine :yellow6]
-                                       [:blue :east :mine :reactor5]
-                                       [:blue :east :mine :reactor6]
-                                       [:blue :mine [4 2]]])
-        blue-mines (get-in game [:teams :team/blue :mines])
-        blue-mine-charge (get-in game [:teams :team/blue :systems :mine])]
-    (is (= blue-mines #{[4 2]}))
-    (is (= blue-mine-charge 0))
-    (is (nil? (:error game)))))
+  (let [g (integration-test :moves [[:blue :east :mine :yellow6]
+                                    [:blue :east :mine :reactor5]
+                                    [:blue :east :mine :reactor6]
+                                    [:blue :mine [4 2]]])]
+    (is (= (blue-mines g) #{[4 2]}))
+    (is (= (blue-mine-charge g) 0))
+    (is (nil? (:error g)))))
 
 (comment
   (run-tests 'dev.rob-3.submarine-commander.submarine-commander-test))
