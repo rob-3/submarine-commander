@@ -29,6 +29,12 @@
 
 (defn mines [gs team]
   (get-in gs [:teams team :mines]))
+
+(defn systems [gs team]
+  (get-in gs [:teams team :systems]))
   
 (defn charge [gs team system]
   (get-in gs [:teams team :systems system]))
+
+(defn breakdowns [gs team]
+  (get-in gs [:teams team :breakdowns]))

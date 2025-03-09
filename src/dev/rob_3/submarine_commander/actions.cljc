@@ -2,7 +2,8 @@
   (:require
    [dev.rob-3.submarine-commander.a-star :refer [a* maze-distance] :as a-star]
    [dev.rob-3.submarine-commander.error :refer [err?]]
-   [dev.rob-3.submarine-commander.lenses :refer [location]]
+   [dev.rob-3.submarine-commander.lenses :refer [breakdowns location systems
+                                                 trail]]
    [dev.rob-3.submarine-commander.maps :as maps]
    [dev.rob-3.submarine-commander.systems :refer [broken?]]))
 
@@ -22,10 +23,10 @@
                     :east [(inc x) y]
                     :west [(dec x) y])]
       (cond
+        (= distance 0) trail
         (contains? (:islands island-map) [x' y']) :err/illegal-island-move
         (not (and (>= 15 x' 1) (>= 15 y' 1))) :err/illegal-offmap-move
         (some #{[x' y']} trail) :err/illegal-trail-cross
-        (= distance 0) trail
         :else (recur (conj trail [x' y']) (dec distance))))))
 
 (def valid-breakdowns
@@ -219,15 +220,23 @@
                                      :team team-using
                                      :answer are-they-there?})))
 
-(defn use-silence [game-state team-moving direction]
+(defn use-silence [game-state team-moving direction distance charge breakdown]
   {:pre [(team? team-moving)
-         (#{:north :south :east :west} direction)]}
+         (#{:north :south :east :west} direction)
+         (<= 0 distance 4)]}
   (let [island-map (:map game-state)
-        trail (get-in game-state [:teams team-moving :trail])
-        trail' (make-move trail direction island-map 4)]
+        trail (trail game-state team-moving)
+        systems (systems game-state team-moving)
+        breakdowns (breakdowns game-state team-moving)
+        trail' (make-move trail direction island-map distance)
+        systems' (charge-system charge systems)
+        breakdowns' (breakdown-system breakdown direction breakdowns)]
     (if (keyword? trail')
       trail'
-      (assoc-in game-state [:teams team-moving :trail] trail'))))
+      (-> game-state
+        (assoc-in [:teams team-moving :trail] trail')
+        (assoc-in [:teams team-moving :systems] systems')
+        (assoc-in [:teams team-moving :breakdowns] breakdowns')))))
 
 (defn activate-system [game-state {:keys [system team-activating params]}]
   {:pre [(team? team-activating)
@@ -257,7 +266,7 @@
                 ;; it should probably live in the game state somewhere
                 :silence (do
                            (assert (#{:north :east :south :west} (:direction params)))
-                           (use-silence game-state team-activating (:direction params))))))))
+                           (use-silence game-state team-activating (:direction params) (:distance params) (:charge params) (:breakdown params))))))))
 
 (defn update-captains-orders [orders direction]
   {:pre [(#{:north :south :east :west} direction)]}
@@ -273,7 +282,7 @@
 (defn update-engineer-orders [orders breakdown]
   (assoc orders :engineer breakdown))
 
-(defn tick [game-state & {:keys [team action direction system breakdown mine guess target target-team move]}]
+(defn tick [game-state & {:keys [team action direction system breakdown mine guess target target-team move distance charge]}]
   (let [team-state (get-in game-state [:teams team])
         orders (:orders team-state)
         gs' (case action
@@ -298,7 +307,10 @@
                                                         :params {:target-team target-team}})
               :order/silence (activate-system game-state {:system :silence
                                                           :team-activating team
-                                                          :params {:direction move}}))
+                                                          :params {:direction move
+                                                                   :distance distance
+                                                                   :charge charge
+                                                                   :breakdown breakdown}}))
         gs' (if (err? gs')
               (assoc game-state :error gs')
               gs')
