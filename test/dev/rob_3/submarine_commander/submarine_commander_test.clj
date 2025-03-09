@@ -56,7 +56,7 @@
          [move & moves] moves]
     (if (nil? move)
       game
-      (let [[color action data1 data2] move
+      (let [[color action data1 data2 data3 data4] move
             color (keyword "team" (name color))
             game (case action
                    (:north
@@ -96,6 +96,9 @@
                    :silence (tick game
                                   :action :order/silence
                                   :move data1
+                                  :distance data2
+                                  :charge data3
+                                  :breakdown data4
                                   :team color))]
         (recur game moves)))))
 
@@ -216,6 +219,32 @@
     (is (= (:events g) [{:type :drone-inform, :team :team/blue, :answer false}]))
     (is (zero? (charge g :team/blue :drone)))
     (is (nil? (:error g)))))
+
+(deftest silence-successful
+  (let [g (integration-test
+            :moves [[:blue :east :silence :reactor5]
+                    [:blue :east :silence :reactor6]
+                    [:blue :east :silence :red6]
+                    [:blue :south :silence :reactor4]
+                    [:blue :south :silence :green4]
+                    [:blue :south :silence :red4]
+                    [:blue :silence :east 4 :silence :green6]])]
+    (is (nil? (:error g)))
+    (is (= [8 4] (blue-location g)))
+    (is (= 1 (charge g :team/blue :silence)))))
+
+(deftest silence-only-2-spaces
+  (let [g (integration-test
+            :moves [[:blue :east :silence :reactor5]
+                    [:blue :east :silence :reactor6]
+                    [:blue :east :silence :red6]
+                    [:blue :south :silence :reactor4]
+                    [:blue :south :silence :green4]
+                    [:blue :south :silence :red4]
+                    [:blue :silence :east 2 :torpedo :green6]])]
+    (is (nil? (:error g)))
+    (is (= [6 4] (blue-location g)))
+    (is (zero? (charge g :team/blue :silence)))))
 
 (comment
   (run-tests 'dev.rob-3.submarine-commander.submarine-commander-test))
