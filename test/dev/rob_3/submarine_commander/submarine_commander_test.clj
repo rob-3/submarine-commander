@@ -5,7 +5,8 @@
    [dev.rob-3.submarine-commander.game-engine :refer [create-game]]
    [dev.rob-3.submarine-commander.lenses :refer [blue-location
                                                  blue-mine-charge blue-mines
-                                                 blue-torp-charge health mines red-orders]]
+                                                 blue-torp-charge charge
+                                                 health mines red-orders]]
    [dev.rob-3.submarine-commander.maps :as maps]
    [dev.rob-3.submarine-commander.systems :refer [broken?]]))
 
@@ -193,6 +194,17 @@
     (is (= (health g :team/blue) 4))
     (is (= (health g :team/red) 4))
     (is (= (mines g :team/blue) #{[5 2]}))))
+
+(deftest drone-activation
+  (let [g (integration-test
+            :moves [[:blue :east :drone :yellow6]
+                    [:blue :east :drone :red6]
+                    [:blue :east :drone :reactor6]
+                    [:blue :east :drone :reactor5]
+                    [:blue :drone :team/red :sector/nine]])]
+    (is (= (:events g) [{:type :drone-inform, :team :team/blue, :answer true}]))
+    (is (zero? (charge g :team/blue :drone)))
+    (is (nil? (:error g)))))
 
 (comment
   (run-tests 'dev.rob-3.submarine-commander.submarine-commander-test))

@@ -190,6 +190,17 @@
                                    :from team-using
                                    :to team-targeted}))
 
+(def sector->n
+  {:sector/one 1
+   :sector/two 2
+   :sector/three 3
+   :sector/four 4
+   :sector/five 5
+   :sector/six 6
+   :sector/seven 7
+   :sector/eight 8
+   :sector/nine 9})
+
 (defn in-sector? [guessed-sector location]
   ;; FIXME we're assuming the 15x15 board here
   (let [sector-width 5
@@ -198,7 +209,7 @@
         [x y] location
         sector (+ (inc (quot (dec x) sector-width))
                   (* sectors-per-row (quot (dec y) sector-height)))]
-    (= sector guessed-sector)))
+    (= sector (sector->n guessed-sector))))
 
 (defn use-drone [game-state team-using team-targeted guessed-sector]
   {:pre [(team? team-using) (team? team-targeted)]}
