@@ -195,7 +195,7 @@
     (is (= (health g :team/red) 4))
     (is (= (mines g :team/blue) #{[5 2]}))))
 
-(deftest drone-activation
+(deftest drone-gives-true
   (let [g (integration-test
             :moves [[:blue :east :drone :yellow6]
                     [:blue :east :drone :red6]
@@ -203,6 +203,17 @@
                     [:blue :east :drone :reactor5]
                     [:blue :drone :team/red :sector/nine]])]
     (is (= (:events g) [{:type :drone-inform, :team :team/blue, :answer true}]))
+    (is (zero? (charge g :team/blue :drone)))
+    (is (nil? (:error g)))))
+
+(deftest drone-gives-false
+  (let [g (integration-test
+            :moves [[:blue :east :drone :yellow6]
+                    [:blue :east :drone :red6]
+                    [:blue :east :drone :reactor6]
+                    [:blue :east :drone :reactor5]
+                    [:blue :drone :team/red :sector/two]])]
+    (is (= (:events g) [{:type :drone-inform, :team :team/blue, :answer false}]))
     (is (zero? (charge g :team/blue :drone)))
     (is (nil? (:error g)))))
 
