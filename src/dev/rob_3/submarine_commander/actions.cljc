@@ -268,7 +268,9 @@
                            (assert (#{:north :east :south :west :nomove} (:direction params)))
                            (if (= :nomove (:direction params))
                              game-state
-                             (use-silence game-state team-activating (:direction params) (:distance params) (:charge params) (:breakdown params)))))))))
+                             (if (<= (:distance params) 4)
+                              (use-silence game-state team-activating (:direction params) (:distance params) (:charge params) (:breakdown params))
+                              :err/silence-too-far))))))))
 
 (defn update-captains-orders [orders direction]
   {:pre [(#{:north :south :east :west} direction)]}
