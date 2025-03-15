@@ -265,8 +265,10 @@
                 ;; FIXME don't hardcode the map
                 ;; it should probably live in the game state somewhere
                 :silence (do
-                           (assert (#{:north :east :south :west} (:direction params)))
-                           (use-silence game-state team-activating (:direction params) (:distance params) (:charge params) (:breakdown params))))))))
+                           (assert (#{:north :east :south :west :nomove} (:direction params)))
+                           (if (= :nomove (:direction params))
+                             game-state
+                             (use-silence game-state team-activating (:direction params) (:distance params) (:charge params) (:breakdown params)))))))))
 
 (defn update-captains-orders [orders direction]
   {:pre [(#{:north :south :east :west} direction)]}
