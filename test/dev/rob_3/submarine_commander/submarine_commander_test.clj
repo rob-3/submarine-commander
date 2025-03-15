@@ -284,5 +284,18 @@
     (is (= [4 4] (blue-location g)))
     (is (= 6 (charge g :team/blue :silence)))))
 
+(deftest illegal-silence-too-far
+  (let [g (integration-test
+            :moves [[:blue :east :silence :reactor5]
+                    [:blue :east :silence :reactor6]
+                    [:blue :east :silence :red6]
+                    [:blue :south :silence :reactor4]
+                    [:blue :south :silence :green4]
+                    [:blue :south :silence :red4]
+                    [:blue :silence :east 5 :torpedo :green2]])]
+    (is (:error g))
+    (is (= [4 4] (blue-location g)))
+    (is (= 6 (charge g :team/blue :silence)))))
+
 (comment
   (run-tests 'dev.rob-3.submarine-commander.submarine-commander-test))
