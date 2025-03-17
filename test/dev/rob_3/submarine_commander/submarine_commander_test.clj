@@ -220,6 +220,17 @@
     (is (zero? (charge g :team/blue :drone)))
     (is (nil? (:error g)))))
 
+(deftest drone-sector-oob
+  (let [g (integration-test
+            :moves [[:blue :east :drone :yellow6]
+                    [:blue :east :drone :red6]
+                    [:blue :east :drone :reactor6]
+                    [:blue :east :drone :reactor5]
+                    [:blue :drone :team/red :sector/zero]])]
+    (is (:error g))
+    (is (= (:events g) []))
+    (is (= 4 (charge g :team/blue :drone)))))
+
 (deftest silence-successful
   (let [g (integration-test
             :moves [[:blue :east :silence :reactor5]

@@ -202,6 +202,9 @@
    :sector/eight 8
    :sector/nine 9})
 
+(defn sector? [x]
+  (contains? sector->n x))
+
 (defn in-sector? [guessed-sector location]
   ;; FIXME we're assuming the 15x15 board here
   (let [sector-width 5
@@ -213,7 +216,7 @@
     (= sector (sector->n guessed-sector))))
 
 (defn use-drone [game-state team-using team-targeted guessed-sector]
-  {:pre [(team? team-using) (team? team-targeted)]}
+  {:pre [(team? team-using) (team? team-targeted) (sector? guessed-sector)]}
   (let [team-location (last (get-in game-state [:teams team-targeted :trail]))
         are-they-there? (in-sector? guessed-sector team-location)]
     (update game-state :events conj {:type :drone-inform
@@ -258,7 +261,9 @@
                         (lay-mine game-state team-activating (:location params)))
                 :drone (do
                          (assert (team? (:target-team params)))
-                         (use-drone game-state team-activating (:target-team params) (:guessed-sector params)))
+                         (if (sector? (:guessed-sector params))
+                          (use-drone game-state team-activating (:target-team params) (:guessed-sector params))
+                          :err/not-a-sector))
                 :sonar (do
                          (assert (team? (:target-team params)))
                          (use-sonar game-state team-activating (:target-team params)))
