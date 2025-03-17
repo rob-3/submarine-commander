@@ -151,6 +151,16 @@
     (is (= 2 blue-health))
     (is (nil? (:error game)))))
 
+(deftest fire-torpedo-too-far
+  (let [game (integration-test :starts {:blue [1 1] :red [12 1]}
+                               :moves [[:red :west :torpedo :yellow1]
+                                       [:red :west :torpedo :reactor1]
+                                       [:red :west :torpedo :reactor2]
+                                       [:red :torpedo [1 2]]]) 
+        blue-health (health game :team/blue)]
+    (is (:error game))
+    (is (= 4 blue-health))))
+
 (deftest illegal-lay-mine
   (let [g (integration-test :moves [[:blue :east :mine :yellow6]
                                     [:blue :east :mine :reactor5]
