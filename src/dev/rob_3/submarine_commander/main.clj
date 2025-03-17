@@ -1,12 +1,14 @@
 (ns dev.rob-3.submarine-commander.main
   (:gen-class)
   (:require
-   [dev.rob-3.submarine-commander.actions :refer [teams]]
-   [dev.rob-3.submarine-commander.game-engine :refer [create-game]]
    [cheshire.core :as json]
    [clojure.core.async :refer [<!! >!!] :as a]
    [clojure.string :as string]
    [clojure.walk :refer [keywordize-keys]]
+   [dev.rob-3.submarine-commander.actions :refer [teams]]
+   [dev.rob-3.submarine-commander.game-engine :refer [create-game]]
+   [dev.rob-3.submarine-commander.lenses :refer [board-of]]
+   [dev.rob-3.submarine-commander.maps :as maps]
    [hiccup.page :as page]
    [hiccup2.core :as h]
    [ring.adapter.jetty :as jetty]
@@ -56,6 +58,18 @@
 ;; That way we can prevent people from joining multiple rooms by mistake.
 (defonce state (atom {:rooms {} :users {}}))
 
+(defn board-html [board]
+  [:div {:style {:display "grid"
+                 :grid-template-columns "repeat(15, 20px)"
+                 :text-align "center"}}
+    (map #(vector :span {:style {:height "20px" :width "20px"}} 
+                  (case %
+                    :location \X
+                    :mine \M
+                    :trail \'
+                    :island \#
+                    :empty \·)) (flatten board))])
+
 (defmulti player-html :role)
 (defmethod player-html :captain [_]
   [[:button "North"]
@@ -64,33 +78,35 @@
    [:button "West"]])
 (defmethod player-html :radio-operator [_] "radio-operator")
 (defmethod player-html :first-mate [_] "first-mate")
-(defmethod player-html :engineer [{room-id :room-id}]
+(defmethod player-html :engineer [{room-id :room-id game :game}]
   ;; FIXME componentize
-  [:div {:style {:display "grid"
-                 :grid-template-columns "50px 50px 50px"
-                 :grid-template-rows "auto"
-                 :grid-template-areas (str "\".   north    .\""
-                                           "\"west  .  east \""
-                                           "\".   south    .\"")}}
-   ;; FIXME componentize
-   [:button {:style {:grid-area "north"}
-             :ws-send ""
-             :hx-vals (json/generate-string {"event" "captain-north" "room" room-id})} "North"]
-   [:button {:style {:grid-area "east"}
-             :ws-send ""
-             :hx-vals (json/generate-string {"event" "captain-east" "room" room-id})} "East"]
-   [:button {:style {:grid-area "south"}
-             :ws-send ""
-             :hx-vals (json/generate-string {"event" "captain-south" "room" room-id})} "South"]
-   [:button {:style {:grid-area "west"}
-             :ws-send ""
-             :hx-vals (json/generate-string {"event" "captain-west" "room" room-id})} "West"]])
+  [:div.container
+    (board-html (board-of game :team/blue))
+    [:div {:style {:display "grid"
+                   :grid-template-columns "50px 50px 50px"
+                   :grid-template-rows "auto"
+                   :grid-template-areas (str "\".   north    .\""
+                                             "\"west  .  east \""
+                                             "\".   south    .\"")}}
+     ;; FIXME componentize
+     [:button {:style {:grid-area "north"}
+               :ws-send ""
+               :hx-vals (json/generate-string {"event" "captain-north" "room" room-id})} "North"]
+     [:button {:style {:grid-area "east"}
+               :ws-send ""
+               :hx-vals (json/generate-string {"event" "captain-east" "room" room-id})} "East"]
+     [:button {:style {:grid-area "south"}
+               :ws-send ""
+               :hx-vals (json/generate-string {"event" "captain-south" "room" room-id})} "South"]
+     [:button {:style {:grid-area "west"}
+               :ws-send ""
+               :hx-vals (json/generate-string {"event" "captain-west" "room" room-id})} "West"]]])
 
 (defn game-html [player-id game room-id]
   [:div#app.container
    ;; FIXME should probably be a lens here
    (let [player-role (get-in game [:players player-id 1])]
-     (player-html {:role player-role :room-id room-id}))])
+     (player-html {:role player-role :room-id room-id :game game}))])
 
 (defn room-html [room-id player-id {:keys [admin players game]}]
   {:pre [room-id player-id (not (nil? admin)) players]}
@@ -200,15 +216,17 @@
                     (room-html room-id player-id room)])))
 
 (defn start-game [room-id team->roles]
-  (let [game (create-game :teams [{:color :team/blue
-                                   ;; FIXME this should not be hard-coded.
-                                   ;; We need an extra screen where each captain chooses
-                                   ;; their location
-                                   :start [1 1]
-                                   :roles (:team/blue team->roles)}
-                                  {:color :team/red
-                                   :start [1 1]
-                                   :roles (:team/red team->roles)}])
+  (let [game (create-game 
+               :map maps/alpha
+               :teams [{:color :team/blue
+                        ;; FIXME this should not be hard-coded.
+                        ;; We need an extra screen where each captain chooses
+                        ;; their location
+                        :start [1 1]
+                        :roles (:team/blue team->roles)}
+                       {:color :team/red
+                        :start [1 1]
+                        :roles (:team/red team->roles)}])
         player->team+role (reduce (fn [acc [k v]] (assoc acc v k))
                                   {}
                                   team->roles)
