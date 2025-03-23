@@ -6,7 +6,7 @@
    [dev.rob-3.submarine-commander.lenses :refer [blue-location
                                                  blue-mine-charge blue-mines
                                                  blue-torp-charge charge
-                                                 health mines red-orders]]
+                                                 health mines red-orders trail]]
    [dev.rob-3.submarine-commander.maps :as maps]
    [dev.rob-3.submarine-commander.systems :refer [broken?]]))
 
@@ -252,6 +252,7 @@
                     [:blue :silence :east 4 :silence :green6]])]
     (is (nil? (:error g)))
     (is (= [8 4] (blue-location g)))
+    (is (= [[1 1] [2 1] [3 1] [4 1] [4 2] [4 3] [4 4] [5 4] [6 4] [7 4] [8 4]] (trail g :team/blue)))
     (is (= 1 (charge g :team/blue :silence)))))
 
 (deftest silence-only-2-spaces
@@ -265,6 +266,7 @@
                     [:blue :silence :east 2 :torpedo :green6]])]
     (is (nil? (:error g)))
     (is (= [6 4] (blue-location g)))
+    (is (= [[1 1] [2 1] [3 1] [4 1] [4 2] [4 3] [4 4] [5 4] [6 4]] (trail g :team/blue)))
     (is (zero? (charge g :team/blue :silence)))))
 
 (deftest silence-move-zero
@@ -278,6 +280,7 @@
                     [:blue :silence :nomove]])]
     (is (nil? (:error g)))
     (is (= [4 4] (blue-location g)))
+    (is (= [[1 1] [2 1] [3 1] [4 1] [4 2] [4 3] [4 4]] (trail g :team/blue)))
     (is (zero? (charge g :team/blue :silence)))))
 
 (deftest illegal-silence-not-enough-charge
