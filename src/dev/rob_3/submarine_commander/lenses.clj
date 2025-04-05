@@ -1,49 +1,50 @@
-(ns dev.rob-3.submarine-commander.lenses)
-
-(defn blue-trail [gs]
-  (get-in gs [:teams :team/blue :trail]))
+(ns dev.rob-3.submarine-commander.lenses
+  (:require
+   [com.rpl.specter :refer [LAST select-one]]))
 
 (defn red-orders [gs]
-  (get-in gs [:teams :team/red :orders]))
+  (select-one [:teams :team/red :orders] gs))
 
 (defn blue-torp-charge [gs]
-  (get-in gs [:teams :team/blue :systems :torpedo]))
+  (select-one [:teams :team/blue :systems :torpedo] gs))
 
 (defn health [gs team]
-  (get-in gs [:teams team :health]))
+  (select-one [:teams team :health] gs))
 
 (defn blue-mines [gs]
-  (get-in gs [:teams :team/blue :mines]))
+  (select-one [:teams :team/blue :mines] gs))
 
 (defn blue-mine-charge [gs]
-  (get-in gs [:teams :team/blue :systems :mine]))
+  (select-one [:teams :team/blue :systems :mine] gs))
 
 (defn blue-location [gs]
-  (last (blue-trail gs)))
+  (select-one [:teams :team/blue :trail LAST] gs))
+
+(defn trail-path [team] [:teams team :trail])
 
 (defn trail [gs team]
-  (get-in gs [:teams team :trail]))
+  (select-one (trail-path team) gs))
 
 (defn location [gs team]
-  (last (trail gs team)))
+  (select-one [(trail-path team) LAST] gs))
 
 (defn mines [gs team]
-  (get-in gs [:teams team :mines]))
+  (select-one [:teams team :mines] gs))
 
 (defn systems [gs team]
-  (get-in gs [:teams team :systems]))
+  (select-one [:teams team :systems] gs))
 
 (defn charge [gs team system]
-  (get-in gs [:teams team :systems system]))
+  (select-one [:teams team :systems system] gs))
 
 (defn breakdowns [gs team]
-  (get-in gs [:teams team :breakdowns]))
+  (select-one [:teams team :breakdowns] gs))
 
 (defn board-of [gs team]
   (let [mines (mines gs team)
         trail (trail gs team)
         location (location gs team)
-        islands (get-in gs [:map :islands])]
+        islands (select-one [:map :islands] gs)]
     (loop [x 1
            y 1
            board []]
