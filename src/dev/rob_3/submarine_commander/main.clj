@@ -43,6 +43,7 @@
 
 (defn page-skeleton [children]
   (page/html5 (page/include-css "/index.css")
+              [:head [:meta {:charset "UTF-8"}]]
               [:script {:type "text/javascript"
                         :src "/htmx.js"}]
               [:script {:src "/ws.js"}]
@@ -72,12 +73,9 @@
 
 (defmulti player-html :role)
 (defmethod player-html :captain [_]
-  [[:button "North"]
-   [:button "East"]
-   [:button "South"]
-   [:button "West"]])
-(defmethod player-html :radio-operator [_] "radio-operator")
-(defmethod player-html :first-mate [_] "first-mate")
+  [:div "Captain"])
+(defmethod player-html :radio-operator [_] [:div "radio-operator"])
+(defmethod player-html :first-mate [_] [:div "first-mate"])
 (defmethod player-html :engineer [{room-id :room-id game :game}]
   ;; FIXME componentize
   [:div.container
@@ -101,11 +99,14 @@
      [:button {:style {:grid-area "west"}
                :ws-send ""
                :hx-vals (json/generate-string {"event" "captain-west" "room" room-id})} "West"]]])
+(defmethod player-html :default [{roles :role}]
+  (let [sub-htmls (map #(player-html {:role %}) roles)]
+    [:div sub-htmls]))
 
 (defn game-html [player-id game room-id]
   [:div#app.container
    ;; FIXME should probably be a lens here
-   (let [player-role (get-in game [:players player-id 1])]
+   (let [player-role (get-in game [:players player-id :role])]
      (player-html {:role player-role :room-id room-id :game game}))])
 
 (defn room-html [room-id player-id {:keys [admin players game]}]
@@ -194,7 +195,9 @@
     (assert room)
     (doseq [player-id (shuffle (:players room))
             :let [socket (get-in users [player-id :socket])]]
-      (ws/send socket (html (room-html room-id player-id room))))))
+      (ws/send socket (try (html (room-html room-id player-id room))
+                           (catch Exception e
+                             (html [:div#app.container (str e)])))))))
 
 (defmulti room-handler request-type)
 (defmethod room-handler :htmx [request]
@@ -227,9 +230,6 @@
                        {:color :team/red
                         :start [1 1]
                         :roles (:team/red team->roles)}])
-        player->team+role (reduce (fn [acc [k v]] (assoc acc v k))
-                                  {}
-                                  team->roles)
     ;; save user data for game and create object
         state' (swap! state assoc-in [:rooms room-id :game] game)]
     ;; set up game map in global state
