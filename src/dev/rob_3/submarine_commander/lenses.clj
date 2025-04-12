@@ -62,6 +62,9 @@
                                  :else :empty))))
         board))))
 
+(defn team-of [gs player-id]
+  (select-one [:players player-id :color] gs))
+
 (defn print-board [board]
   (doseq [row board]
     (doseq [cell row]

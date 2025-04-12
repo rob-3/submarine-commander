@@ -5,14 +5,14 @@
 
 (def state
   {:map maps/alpha
-   :players {"d0869bad-8696-4405-ab35-8c34b2e96d33" [:team/red :captain]
-             "e7e1966d-a54c-4df3-8f54-2162d4c5f8c0" [:team/red :first-mate]
-             "2fd7c8be-482f-4ef0-804a-d110d14b7383" [:team/red :radio-operator]
-             "798987b4-617a-4534-ba01-ddacc5aa8509" [:team/red :engineer]
-             "3214c318-c497-43d7-a92d-10eb151a844b" [:team/blue :captain]
-             "c46bcaa8-a2cf-4b4f-8458-6e7dd99163b4" [:team/blue :first-mate]
-             "ac57b545-252e-49e1-8d4f-5f25de66bf7d" [:team/blue :radio-operator]
-             "eaee2693-6afa-41d5-b5e6-094c5745f8a9" [:team/blue :engineer]}
+   :players {"d0869bad-8696-4405-ab35-8c34b2e96d33" {:color :team/red :role #{:captain}}
+             "e7e1966d-a54c-4df3-8f54-2162d4c5f8c0" {:color :team/red :role #{:first-mate}}
+             "2fd7c8be-482f-4ef0-804a-d110d14b7383" {:color :team/red :role #{:radio-operator}}
+             "798987b4-617a-4534-ba01-ddacc5aa8509" {:color :team/red :role #{:engineer}}
+             "3214c318-c497-43d7-a92d-10eb151a844b" {:color :team/blue :role #{:captain}}
+             "c46bcaa8-a2cf-4b4f-8458-6e7dd99163b4" {:color :team/blue :role #{:first-mate}}
+             "ac57b545-252e-49e1-8d4f-5f25de66bf7d" {:color :team/blue :role #{:radio-operator}}
+             "eaee2693-6afa-41d5-b5e6-094c5745f8a9" {:color :team/blue :role #{:engineer}}}
    :teams {:team/red {:trail [[1 1]]
                       :health 4
                       :systems {:torpedo 0
@@ -83,7 +83,9 @@
                        teams)
         players (reduce (fn [acc {:keys [color roles]}]
                           (merge acc (reduce (fn [acc2 [role player-id]]
-                                               (assoc acc2 player-id [color role]))
+                                               (-> acc2
+                                                 (assoc-in [player-id :color] color)
+                                                 (update-in [player-id :role] (fnil conj #{}) role)))
                                              {}
                                              roles)))
                         {}
