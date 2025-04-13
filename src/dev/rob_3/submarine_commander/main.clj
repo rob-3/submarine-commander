@@ -5,9 +5,9 @@
    [clojure.core.async :refer [<!! >!!] :as a]
    [clojure.string :as string]
    [clojure.walk :refer [keywordize-keys]]
-   [dev.rob-3.submarine-commander.actions :refer [teams]]
+   [dev.rob-3.submarine-commander.actions :refer [teams tick]]
    [dev.rob-3.submarine-commander.game-engine :refer [create-game]]
-   [dev.rob-3.submarine-commander.lenses :refer [board-of]]
+   [dev.rob-3.submarine-commander.lenses :refer [board-of team-of]]
    [dev.rob-3.submarine-commander.maps :as maps]
    [hiccup.page :as page]
    [hiccup2.core :as h]
@@ -63,44 +63,176 @@
   [:div {:style {:display "grid"
                  :grid-template-columns "repeat(15, 20px)"
                  :text-align "center"}}
-    (map #(vector :span {:style {:height "20px" :width "20px"}} 
-                  (case %
-                    :location \X
-                    :mine \M
-                    :trail \'
-                    :island \#
-                    :empty \·)) (flatten board))])
+   (map #(vector :span {:style {:height "20px" :width "20px"}}
+                 (case %
+                   :location \X
+                   :mine \M
+                   :trail \'
+                   :island \#
+                   :empty \·)) (flatten board))])
 
 (defmulti player-html :role)
-(defmethod player-html :captain [_]
-  [:div "Captain"])
-(defmethod player-html :radio-operator [_] [:div "radio-operator"])
-(defmethod player-html :first-mate [_] [:div "first-mate"])
-(defmethod player-html :engineer [{room-id :room-id game :game}]
-  ;; FIXME componentize
+(defmethod player-html :captain [{room-id :room-id game :game}]
   [:div.container
-    (board-html (board-of game :team/blue))
-    [:div {:style {:display "grid"
-                   :grid-template-columns "50px 50px 50px"
-                   :grid-template-rows "auto"
-                   :grid-template-areas (str "\".   north    .\""
-                                             "\"west  .  east \""
-                                             "\".   south    .\"")}}
+   (board-html (board-of game :team/blue))
+   [:div {:style {:display "grid"
+                  :grid-template-columns "50px 50px 50px"
+                  :grid-template-rows "auto"
+                  :grid-template-areas (str "\".   north    .\""
+                                            "\"west  .  east \""
+                                            "\".   south    .\"")}}
      ;; FIXME componentize
-     [:button {:style {:grid-area "north"}
-               :ws-send ""
-               :hx-vals (json/generate-string {"event" "captain-north" "room" room-id})} "North"]
-     [:button {:style {:grid-area "east"}
-               :ws-send ""
-               :hx-vals (json/generate-string {"event" "captain-east" "room" room-id})} "East"]
-     [:button {:style {:grid-area "south"}
-               :ws-send ""
-               :hx-vals (json/generate-string {"event" "captain-south" "room" room-id})} "South"]
-     [:button {:style {:grid-area "west"}
-               :ws-send ""
-               :hx-vals (json/generate-string {"event" "captain-west" "room" room-id})} "West"]]])
-(defmethod player-html :default [{roles :role}]
-  (let [sub-htmls (map #(player-html {:role %}) roles)]
+    [:button {:style {:grid-area "north"}
+              :ws-send ""
+              :hx-vals (json/encode {"event" "order/captain"
+                                     "direction" "north"
+                                     "room" room-id})} "North"]
+    [:button {:style {:grid-area "east"}
+              :ws-send ""
+              :hx-vals (json/encode {"event" "order/captain"
+                                     "direction" "east"
+                                     "room" room-id})} "East"]
+    [:button {:style {:grid-area "south"}
+              :ws-send ""
+              :hx-vals (json/encode {"event" "order/captain"
+                                     "direction" "south"
+                                     "room" room-id})} "South"]
+    [:button {:style {:grid-area "west"}
+              :ws-send ""
+              :hx-vals (json/generate-string {"event" "order/captain"
+                                              "direction" "west"
+                                              "room" room-id})} "West"]]])
+(defmethod player-html :radio-operator [_] [:div "radio-operator"])
+(defmethod player-html :first-mate [{room-id :room-id}] [:div "first-mate"]
+  [:div
+   [:button {:ws-send ""
+             :hx-vals (json/encode {"event" "order/first-mate"
+                                             "system" "mine"
+                                             "room" room-id})} "Mine"]
+   [:button {:ws-send ""
+             :hx-vals (json/encode {"event" "order/first-mate"
+                                             "system" "torpedo"
+                                             "room" room-id})} "Torpedo"]
+   [:button {:ws-send ""
+             :hx-vals (json/encode {"event" "order/first-mate"
+                                             "system" "drone"
+                                             "room" room-id})} "Drone"]
+   [:button {:ws-send ""
+             :hx-vals (json/encode {"event" "order/first-mate"
+                                             "system" "sonar"
+                                             "room" room-id})} "Sonar"]
+   [:button {:ws-send ""
+             :hx-vals (json/encode {"event" "order/first-mate"
+                                    "system" "silence"
+                                    "room" room-id})} "Silence"]])
+(defmethod player-html :engineer [{room-id "room-id"}]
+  [:div
+   [:div
+     "West"
+     [:button {:ws-send ""
+               :hx-vals (json/generate-string {"event" "order/engineer"
+                                               "breakdown" "red1"
+                                               "room" room-id})} "red1"]
+     [:button {:ws-send ""
+               :hx-vals (json/generate-string {"event" "order/engineer"
+                                               "breakdown" "yellow1"
+                                               "room" room-id})} "yellow1"]
+     [:button {:ws-send ""
+               :hx-vals (json/generate-string {"event" "order/engineer"
+                                               "breakdown" "green1"
+                                               "room" room-id})} "green1"]
+     [:button {:ws-send ""
+               :hx-vals (json/generate-string {"event" "order/engineer"
+                                               "breakdown" "green2"
+                                               "room" room-id})} "green2"]
+     [:button {:ws-send ""
+               :hx-vals (json/generate-string {"event" "order/engineer"
+                                               "breakdown" "reactor1"
+                                               "room" room-id})} "reactor1"]
+     [:button {:ws-send ""
+               :hx-vals (json/generate-string {"event" "order/engineer"
+                                               "breakdown" "reactor2"
+                                               "room" room-id})} "reactor2"]]
+   [:div
+     "North"
+     [:button {:ws-send ""
+               :hx-vals (json/generate-string {"event" "order/engineer"
+                                               "breakdown" "yellow2"
+                                               "room" room-id})} "yellow2"]
+     [:button {:ws-send ""
+               :hx-vals (json/generate-string {"event" "order/engineer"
+                                               "breakdown" "yellow3"
+                                               "room" room-id})} "yellow3"]
+     [:button {:ws-send ""
+               :hx-vals (json/generate-string {"event" "order/engineer"
+                                               "breakdown" "red2"
+                                               "room" room-id})} "red2"]
+     [:button {:ws-send ""
+               :hx-vals (json/generate-string {"event" "order/engineer"
+                                               "breakdown" "green3"
+                                               "room" room-id})} "green3"]
+     [:button {:ws-send ""
+               :hx-vals (json/generate-string {"event" "order/engineer"
+                                               "breakdown" "red3"
+                                               "room" room-id})} "red3"]
+     [:button {:ws-send ""
+               :hx-vals (json/generate-string {"event" "order/engineer"
+                                               "breakdown" "reactor3"
+                                               "room" room-id})} "reactor3"]]
+   [:div
+     "South"
+     [:button {:ws-send ""
+               :hx-vals (json/generate-string {"event" "order/engineer"
+                                               "breakdown" "green4"
+                                               "room" room-id})} "green4"]
+     [:button {:ws-send ""
+               :hx-vals (json/generate-string {"event" "order/engineer"
+                                               "breakdown" "yellow4"
+                                               "room" room-id})} "yellow4"]
+     [:button {:ws-send ""
+               :hx-vals (json/generate-string {"event" "order/engineer"
+                                               "breakdown" "red4"
+                                               "room" room-id})} "red4"]
+     [:button {:ws-send ""
+               :hx-vals (json/generate-string {"event" "order/engineer"
+                                               "breakdown" "red5"
+                                               "room" room-id})} "red5"]
+     [:button {:ws-send ""
+               :hx-vals (json/generate-string {"event" "order/engineer"
+                                               "breakdown" "reactor4"
+                                               "room" room-id})} "reactor4"]
+     [:button {:ws-send ""
+               :hx-vals (json/generate-string {"event" "order/engineer"
+                                               "breakdown" "yellow5"
+                                               "room" room-id})} "yellow5"]]
+   [:div
+     "East"
+     [:button {:ws-send ""
+               :hx-vals (json/generate-string {"event" "order/engineer"
+                                               "breakdown" "green5"
+                                               "room" room-id})} "green5"]
+     [:button {:ws-send ""
+               :hx-vals (json/generate-string {"event" "order/engineer"
+                                               "breakdown" "yellow6"
+                                               "room" room-id})} "yellow6"]
+     [:button {:ws-send ""
+               :hx-vals (json/generate-string {"event" "order/engineer"
+                                               "breakdown" "red6"
+                                               "room" room-id})} "red6"]
+     [:button {:ws-send ""
+               :hx-vals (json/generate-string {"event" "order/engineer"
+                                               "breakdown" "reactor5"
+                                               "room" room-id})} "reactor5"]
+     [:button {:ws-send ""
+               :hx-vals (json/generate-string {"event" "order/engineer"
+                                               "breakdown" "green6"
+                                               "room" room-id})} "green6"]
+     [:button {:ws-send ""
+               :hx-vals (json/generate-string {"event" "order/engineer"
+                                               "breakdown" "reactor6"
+                                               "room" room-id})} "reactor6"]]])
+(defmethod player-html :default [game]
+  (let [sub-htmls (map #(player-html (assoc game :role %)) (:role game))]
     [:div sub-htmls]))
 
 (defn game-html [player-id game room-id]
@@ -189,6 +321,14 @@
 (defn leave-room [rooms player]
   (remove-from-all-rooms rooms player))
 
+(defn broadcast-err! [{:keys [rooms users]} room-id err]
+  {:pre [rooms users room-id]}
+  (let [room (get rooms room-id)]
+    (assert room)
+    (doseq [player-id (shuffle (:players room))
+            :let [socket (get-in users [player-id :socket])]]
+      (ws/send socket (html [:div#app.container (str err)])))))
+
 (defn broadcast-update! [{:keys [rooms users]} room-id]
   {:pre [rooms users room-id]}
   (let [room (get rooms room-id)]
@@ -219,17 +359,17 @@
                     (room-html room-id player-id room)])))
 
 (defn start-game [room-id team->roles]
-  (let [game (create-game 
-               :map maps/alpha
-               :teams [{:color :team/blue
+  (let [game (create-game
+              :map maps/alpha
+              :teams [{:color :team/blue
                         ;; FIXME this should not be hard-coded.
                         ;; We need an extra screen where each captain chooses
                         ;; their location
-                        :start [1 1]
-                        :roles (:team/blue team->roles)}
-                       {:color :team/red
-                        :start [1 1]
-                        :roles (:team/red team->roles)}])
+                       :start [1 1]
+                       :roles (:team/blue team->roles)}
+                      {:color :team/red
+                       :start [1 1]
+                       :roles (:team/red team->roles)}])
     ;; save user data for game and create object
         state' (swap! state assoc-in [:rooms room-id :game] game)]
     ;; set up game map in global state
@@ -243,24 +383,59 @@
     team))
 
 (defn on-message [_socket message player-id]
-  (let [{event "event" room-id "room"} (json/parse-string message)]
-    (case event
-      "join-room" (linearize! (fn [] (let [state' (swap! state #(join-room % room-id player-id))]
-                                       (broadcast-update! state' room-id))))
-      "start-game" (let [teams
-                         ;; TODO we should eventually do some common sense checks to,
-                         ;; for example, avoid a player who is on both teams.
-                         (->> message
-                              json/parse-string
-                              (reduce (fn [acc [k v]]
-                                        (let [[color role] (string/split k #"-" 2)]
-                                          (if (and role (re-find #"^captain|first-mate|radio-operator|engineer$" role))
-                                            (assoc-in acc [(keyword "team" color) (keyword role)] v)
-                                            acc)))
-                                      {}))]
-                     (start-game room-id teams))
-      "captain-north" (let []
-                        (swap! state (fn [old-state] old-state))))))
+  (prn message)
+  (let [{event "event"
+         room-id "room"
+         direction "direction"
+         system "system"
+         breakdown "breakdown"} (json/parse-string message)]
+    (try (case event
+          "join-room" (linearize! (fn [] (let [state' (swap! state #(join-room % room-id player-id))]
+                                           (broadcast-update! state' room-id))))
+          "start-game" (let [teams
+                             ;; TODO we should eventually do some common sense checks to,
+                             ;; for example, avoid a player who is on both teams.
+                             (->> message
+                                  json/parse-string
+                                  (reduce (fn [acc [k v]]
+                                            (let [[color role] (string/split k #"-" 2)]
+                                              (if (and role (re-find #"^captain|first-mate|radio-operator|engineer$" role))
+                                                (assoc-in acc [(keyword "team" color) (keyword role)] v)
+                                                acc)))
+                                          {}))]
+                         (start-game room-id teams))
+          "order/captain" (let [state' (swap! state
+                                              (fn [s]
+                                                (tick s
+                                                      :action :order/captain
+                                                      ;; FIXME
+                                                      :direction (keyword direction)
+                                                      :team (team-of s player-id))))]
+                             (broadcast-update! state' room-id)
+                             (prn @state))
+          "order/first-mate" (linearize!
+                              (fn []
+                                (let [state' (swap! state
+                                                    (fn [s]
+                                                      (tick s
+                                                            :action :order/first-mate
+                                                            ;; FIXME
+                                                            :system (keyword system)
+                                                            :team (team-of s player-id))))]
+                                  (broadcast-update! state' room-id))))
+          "order/engineer" (linearize!
+                            (fn []
+                              (let [state' (swap! state
+                                                  (fn [s]
+                                                    (tick s
+                                                          :action :order/engineer
+                                                          ;; FIXME
+                                                          :breakdown (keyword breakdown)
+                                                          :team (team-of s player-id))))]
+                                (broadcast-update! state' room-id)))))
+         (catch Error e
+           (let [{room-id "room"} (json/decode message)] 
+             (broadcast-err! @state room-id e))))))
 
 (defn ws-handler [request]
   (if (ws/upgrade-request? request)
