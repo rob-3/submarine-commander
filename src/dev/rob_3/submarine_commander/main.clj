@@ -5,6 +5,7 @@
    [clojure.core.async :refer [<!! >!!] :as a]
    [clojure.string :as string]
    [clojure.walk :refer [keywordize-keys]]
+   [com.rpl.specter :refer [transform]]
    [dev.rob-3.submarine-commander.actions :refer [teams tick]]
    [dev.rob-3.submarine-commander.game-engine :refer [create-game]]
    [dev.rob-3.submarine-commander.lenses :refer [board-of team-of]]
@@ -71,10 +72,13 @@
                    :island \#
                    :empty \·)) (flatten board))])
 
-(defmulti player-html :role)
-(defmethod player-html :captain [{room-id :room-id game :game}]
+(ns-unmap *ns* 'player-html)
+(defmulti player-html (fn [{:keys [game player-id]}]
+                        (get-in game [:players player-id :role])))
+(defmethod player-html :captain [{:keys [room-id game player-id]}] 
   [:div.container
-   (board-html (board-of game :team/blue))
+   ;; FIXME (board-of game player-id) should exist
+   (board-html (board-of game (team-of game player-id)))
    [:div {:style {:display "grid"
                   :grid-template-columns "50px 50px 50px"
                   :grid-template-rows "auto"
@@ -125,7 +129,7 @@
              :hx-vals (json/encode {"event" "order/first-mate"
                                     "system" "silence"
                                     "room" room-id})} "Silence"]])
-(defmethod player-html :engineer [{room-id "room-id"}]
+(defmethod player-html :engineer [{room-id :room-id}]
   [:div
    [:div
      "West"
@@ -231,15 +235,16 @@
                :hx-vals (json/generate-string {"event" "order/engineer"
                                                "breakdown" "reactor6"
                                                "room" room-id})} "reactor6"]]])
-(defmethod player-html :default [game]
-  (let [sub-htmls (map #(player-html (assoc game :role %)) (:role game))]
+(defmethod player-html :default [obj]
+  (let [{:keys [game player-id]} obj
+        roles (get-in game [:players player-id :role])
+        sub-htmls (map #(player-html (assoc-in obj [:game :players player-id :role] %)) roles)]
     [:div sub-htmls]))
 
 (defn game-html [player-id game room-id]
   [:div#app.container
    ;; FIXME should probably be a lens here
-   (let [player-role (get-in game [:players player-id :role])]
-     (player-html {:role player-role :room-id room-id :game game}))])
+   (player-html {:player-id player-id :room-id room-id :game game})])
 
 (defn room-html [room-id player-id {:keys [admin players game]}]
   {:pre [room-id player-id (not (nil? admin)) players]}
@@ -406,32 +411,43 @@
                          (start-game room-id teams))
           "order/captain" (let [state' (swap! state
                                               (fn [s]
-                                                (tick s
-                                                      :action :order/captain
-                                                      ;; FIXME
-                                                      :direction (keyword direction)
-                                                      :team (team-of s player-id))))]
-                             (broadcast-update! state' room-id)
-                             (prn @state))
+                                                (transform
+                                                  [:rooms room-id :game]
+                                                  (fn [s]
+                                                    (tick s
+                                                          :action :order/captain
+                                                          ;; FIXME
+                                                          :direction (keyword direction)
+                                                          :team (team-of s player-id)))
+                                                  s)))]
+                             (broadcast-update! state' room-id))
           "order/first-mate" (linearize!
                               (fn []
                                 (let [state' (swap! state
                                                     (fn [s]
-                                                      (tick s
-                                                            :action :order/first-mate
-                                                            ;; FIXME
-                                                            :system (keyword system)
-                                                            :team (team-of s player-id))))]
+                                                      (transform
+                                                        [:rooms room-id :game]
+                                                        (fn [s]
+                                                         (tick s
+                                                               :action :order/first-mate
+                                                               ;; FIXME
+                                                               :system (keyword system)
+                                                               :team (team-of s player-id)))
+                                                        s)))]
                                   (broadcast-update! state' room-id))))
           "order/engineer" (linearize!
                             (fn []
                               (let [state' (swap! state
                                                   (fn [s]
-                                                    (tick s
-                                                          :action :order/engineer
-                                                          ;; FIXME
-                                                          :breakdown (keyword breakdown)
-                                                          :team (team-of s player-id))))]
+                                                    (transform
+                                                      [:rooms room-id :game]
+                                                      (fn [s]
+                                                        (tick s
+                                                              :action :order/engineer
+                                                              ;; FIXME
+                                                              :breakdown (keyword breakdown)
+                                                              :team (team-of s player-id)))
+                                                      s)))]
                                 (broadcast-update! state' room-id)))))
          (catch Error e
            (let [{room-id "room"} (json/decode message)] 
