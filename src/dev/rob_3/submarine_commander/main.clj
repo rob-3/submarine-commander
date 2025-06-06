@@ -72,6 +72,23 @@
                    :island \#
                    :empty \·)) (flatten board))])
 
+(defn breakdown->css-color [breakdown]
+  (-> (re-find #"(?:red|green|yellow)" (name breakdown))
+      {"green" "green" "yellow" "yellow" "red" "red" nil ""}))
+
+(defn button [& {:keys [room-id event breakdown]}]
+  [:button {:style {:margin "3px"
+                    :padding "5px"
+                    :width "50px"
+                    :height "50px"
+                    :grid-area breakdown
+                    :background-color (breakdown->css-color breakdown)
+                    :border-radius "50%"}
+            :ws-send ""
+            :hx-vals (json/generate-string {"event" event
+                                            "breakdown" breakdown
+                                            "room" room-id})} breakdown])
+
 (ns-unmap *ns* 'player-html)
 (defmulti player-html (fn [{:keys [game player-id]}]
                         (get-in game [:players player-id :role])))
@@ -130,111 +147,64 @@
                                     "system" "silence"
                                     "room" room-id})} "Silence"]])
 (defmethod player-html :engineer [{room-id :room-id}]
-  [:div
-   [:div
-     "West"
-     [:button {:ws-send ""
-               :hx-vals (json/generate-string {"event" "order/engineer"
-                                               "breakdown" "red1"
-                                               "room" room-id})} "red1"]
-     [:button {:ws-send ""
-               :hx-vals (json/generate-string {"event" "order/engineer"
-                                               "breakdown" "yellow1"
-                                               "room" room-id})} "yellow1"]
-     [:button {:ws-send ""
-               :hx-vals (json/generate-string {"event" "order/engineer"
-                                               "breakdown" "green1"
-                                               "room" room-id})} "green1"]
-     [:button {:ws-send ""
-               :hx-vals (json/generate-string {"event" "order/engineer"
-                                               "breakdown" "green2"
-                                               "room" room-id})} "green2"]
-     [:button {:ws-send ""
-               :hx-vals (json/generate-string {"event" "order/engineer"
-                                               "breakdown" "reactor1"
-                                               "room" room-id})} "reactor1"]
-     [:button {:ws-send ""
-               :hx-vals (json/generate-string {"event" "order/engineer"
-                                               "breakdown" "reactor2"
-                                               "room" room-id})} "reactor2"]]
-   [:div
-     "North"
-     [:button {:ws-send ""
-               :hx-vals (json/generate-string {"event" "order/engineer"
-                                               "breakdown" "yellow2"
-                                               "room" room-id})} "yellow2"]
-     [:button {:ws-send ""
-               :hx-vals (json/generate-string {"event" "order/engineer"
-                                               "breakdown" "yellow3"
-                                               "room" room-id})} "yellow3"]
-     [:button {:ws-send ""
-               :hx-vals (json/generate-string {"event" "order/engineer"
-                                               "breakdown" "red2"
-                                               "room" room-id})} "red2"]
-     [:button {:ws-send ""
-               :hx-vals (json/generate-string {"event" "order/engineer"
-                                               "breakdown" "green3"
-                                               "room" room-id})} "green3"]
-     [:button {:ws-send ""
-               :hx-vals (json/generate-string {"event" "order/engineer"
-                                               "breakdown" "red3"
-                                               "room" room-id})} "red3"]
-     [:button {:ws-send ""
-               :hx-vals (json/generate-string {"event" "order/engineer"
-                                               "breakdown" "reactor3"
-                                               "room" room-id})} "reactor3"]]
-   [:div
-     "South"
-     [:button {:ws-send ""
-               :hx-vals (json/generate-string {"event" "order/engineer"
-                                               "breakdown" "green4"
-                                               "room" room-id})} "green4"]
-     [:button {:ws-send ""
-               :hx-vals (json/generate-string {"event" "order/engineer"
-                                               "breakdown" "yellow4"
-                                               "room" room-id})} "yellow4"]
-     [:button {:ws-send ""
-               :hx-vals (json/generate-string {"event" "order/engineer"
-                                               "breakdown" "red4"
-                                               "room" room-id})} "red4"]
-     [:button {:ws-send ""
-               :hx-vals (json/generate-string {"event" "order/engineer"
-                                               "breakdown" "red5"
-                                               "room" room-id})} "red5"]
-     [:button {:ws-send ""
-               :hx-vals (json/generate-string {"event" "order/engineer"
-                                               "breakdown" "reactor4"
-                                               "room" room-id})} "reactor4"]
-     [:button {:ws-send ""
-               :hx-vals (json/generate-string {"event" "order/engineer"
-                                               "breakdown" "yellow5"
-                                               "room" room-id})} "yellow5"]]
-   [:div
-     "East"
-     [:button {:ws-send ""
-               :hx-vals (json/generate-string {"event" "order/engineer"
-                                               "breakdown" "green5"
-                                               "room" room-id})} "green5"]
-     [:button {:ws-send ""
-               :hx-vals (json/generate-string {"event" "order/engineer"
-                                               "breakdown" "yellow6"
-                                               "room" room-id})} "yellow6"]
-     [:button {:ws-send ""
-               :hx-vals (json/generate-string {"event" "order/engineer"
-                                               "breakdown" "red6"
-                                               "room" room-id})} "red6"]
-     [:button {:ws-send ""
-               :hx-vals (json/generate-string {"event" "order/engineer"
-                                               "breakdown" "reactor5"
-                                               "room" room-id})} "reactor5"]
-     [:button {:ws-send ""
-               :hx-vals (json/generate-string {"event" "order/engineer"
-                                               "breakdown" "green6"
-                                               "room" room-id})} "green6"]
-     [:button {:ws-send ""
-               :hx-vals (json/generate-string {"event" "order/engineer"
-                                               "breakdown" "reactor6"
-                                               "room" room-id})} "reactor6"]]])
+  (letfn [(b [bd]
+            (button :room-id room-id
+                    :event :order/engineer
+                    :breakdown bd))]
+    [:div
+     {:style {:display "flex"}}
+     [:div
+      "West"
+      [:div
+       {:style {:display "grid"
+                :grid-template-areas (str "\"red1 . yellow1\""
+                                          "\". . green1\""
+                                          "\"green2 reactor1 reactor2\"")}}
+       (b :red1)
+       (b :yellow1) 
+       (b :green1) 
+       (b :green2) 
+       (b :reactor1) 
+       (b :reactor2)]] 
+     [:div
+      "North"
+      [:div
+       {:style {:display "grid"
+                :grid-template-areas(str "\"yellow2 . .\""
+                                         "\"red2 . yellow3\""
+                                         "\"green3 red3 reactor3\"")}}
+       (b :yellow2)
+       (b :yellow3)
+       (b :red2)
+       (b :green3)
+       (b :red3)
+       (b :reactor3)]]
+     [:div
+      "South"
+      [:div
+       {:style {:display "grid"
+                :grid-template-areas(str "\"green4 . .\""
+                                         "\"yellow4 . red4\""
+                                         "\"red5 reactor4 yellow5\"")}}
+       (b :green4)
+       (b :yellow4)
+       (b :red4)
+       (b :red5)
+       (b :reactor4)
+       (b :yellow5)]]
+     [:div
+      "East"
+      [:div
+       {:style {:display "grid"
+                :grid-template-areas(str "\"green5 . .\""
+                                         "\"yellow6 . red6\""
+                                         "\"reactor5 green6 reactor6\"")}}
+       (b :green5)
+       (b :yellow6)
+       (b :red6)
+       (b :reactor5)
+       (b :green6)
+       (b :reactor6)]]]))
 (defmethod player-html :default [obj]
   (let [{:keys [game player-id]} obj
         roles (get-in game [:players player-id :role])
@@ -303,7 +273,8 @@
                                           (first (shuffle players'))
                                           admin)]
                              (if (nil? admin')
-                               (dissoc rooms old-room)
+                               rooms
+                               ;(dissoc rooms old-room)
                                (assoc rooms old-room {:admin admin' :players players'}))))))
       state)))
 
