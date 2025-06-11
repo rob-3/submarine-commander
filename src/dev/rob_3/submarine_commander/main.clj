@@ -3,13 +3,13 @@
   (:require
    [cheshire.core :as json]
    [clojure.core.async :refer [<!! >!!] :as a]
-   [clojure.string :as string]
+   [clojure.set :as set]
    [clojure.string :as str]
    [clojure.walk :refer [keywordize-keys]]
    [com.rpl.specter :refer [transform]]
    [dev.rob-3.submarine-commander.actions :refer [teams tick]]
    [dev.rob-3.submarine-commander.game-engine :refer [create-game]]
-   [dev.rob-3.submarine-commander.lenses :refer [board-of systems team-of]]
+   [dev.rob-3.submarine-commander.lenses :refer [board-of breakdowns systems team-of]]
    [dev.rob-3.submarine-commander.maps :as maps]
    [hiccup.page :as page]
    [hiccup2.core :as h]
@@ -77,7 +77,7 @@
   (-> (re-find #"(?:red|green|yellow)" (name breakdown))
       {"green" "green" "yellow" "yellow" "red" "red" nil ""}))
 
-(defn button [& {:keys [room-id event breakdown]}]
+(defn button [& {:keys [room-id event breakdown disabled]}]
   [:button {:style {:margin "3px"
                     :padding "5px"
                     :width "50px"
@@ -85,6 +85,7 @@
                     :grid-area breakdown
                     :background-color (breakdown->css-color breakdown)
                     :border-radius "50%"}
+            :disabled disabled
             :ws-send ""
             :hx-vals (json/generate-string {"event" event
                                             "breakdown" breakdown
@@ -155,11 +156,14 @@
      (b "Silence")
      (b "Torpedo")
      (b "Sonar")]))
-(defmethod player-html :engineer [{room-id :room-id}]
-  (letfn [(b [bd]
+(defmethod player-html :engineer [{:keys [room-id game player-id]}]
+  (let [team (team-of game player-id)
+        bds (breakdowns game team)
+        b (fn [bd]
             (button :room-id room-id
                     :event :order/engineer
-                    :breakdown bd))]
+                    :breakdown bd
+                    :disabled (contains? (->> bds vals (apply set/union)) bd)))]
     [:div
      {:style {:display "flex"}}
      [:div
@@ -247,7 +251,7 @@
              :ws-send ""}
             (for [team teams
                   :let [color (name team)
-                        team-name (string/capitalize color)]]
+                        team-name (str/capitalize color)]]
               (list
                [:h1.title.two-col (str team-name " Team")]
                (for [[role role-id] {"Captain" "captain"
