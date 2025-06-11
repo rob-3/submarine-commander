@@ -9,7 +9,7 @@
    [com.rpl.specter :refer [transform]]
    [dev.rob-3.submarine-commander.actions :refer [teams tick]]
    [dev.rob-3.submarine-commander.game-engine :refer [create-game]]
-   [dev.rob-3.submarine-commander.lenses :refer [board-of team-of]]
+   [dev.rob-3.submarine-commander.lenses :refer [board-of systems team-of]]
    [dev.rob-3.submarine-commander.maps :as maps]
    [hiccup.page :as page]
    [hiccup2.core :as h]
@@ -125,20 +125,26 @@
                                               "direction" "west"
                                               "room" room-id})} "West"]]])
 (defmethod player-html :radio-operator [_] [:div "radio-operator"])
-(defmethod player-html :first-mate [{room-id :room-id}] [:div "first-mate"]
-  (letfn [(b [system]
-            [:button {:style {:background-color ({"Mine" "red"
-                                                  "Torpedo" "red"
-                                                  "Drone" "green"
-                                                  "Sonar" "green"
-                                                  "Silence" "yellow"} system)
-                              :height "50px"
-                              :width "50px"
-                              :border-radius "50%"}
-                      :ws-send ""
-                      :hx-vals (json/encode {"event" "order/first-mate"
-                                             "system" (str/lower-case system)
-                                             "room" room-id})} system])]
+(defmethod player-html :first-mate [{:keys [room-id game player-id]}] [:div "first-mate"]
+  (let [team (team-of game player-id)
+        systems (systems game team)
+        b (fn [system]
+            (let [charges (-> system
+                              str/lower-case
+                              keyword
+                              systems)]
+              [:button {:style {:background-color ({"Mine" "red"
+                                                    "Torpedo" "red"
+                                                    "Drone" "green"
+                                                    "Sonar" "green"
+                                                    "Silence" "yellow"} system)
+                                :height "50px"
+                                :width "50px"
+                                :border-radius "50%"}
+                        :ws-send ""
+                        :hx-vals (json/encode {"event" "order/first-mate"
+                                               "system" (str/lower-case system)
+                                               "room" room-id})} (str system " " charges)]))]
     [:div {:style {:display "grid"
                    :grid-template-rows "1fr 1fr"
                    :grid-template-columns "1fr 1fr 1fr"
