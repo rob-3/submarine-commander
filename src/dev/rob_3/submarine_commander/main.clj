@@ -4,6 +4,7 @@
    [cheshire.core :as json]
    [clojure.core.async :refer [<!! >!!] :as a]
    [clojure.string :as string]
+   [clojure.string :as str]
    [clojure.walk :refer [keywordize-keys]]
    [com.rpl.specter :refer [transform]]
    [dev.rob-3.submarine-commander.actions :refer [teams tick]]
@@ -125,27 +126,29 @@
                                               "room" room-id})} "West"]]])
 (defmethod player-html :radio-operator [_] [:div "radio-operator"])
 (defmethod player-html :first-mate [{room-id :room-id}] [:div "first-mate"]
-  [:div
-   [:button {:ws-send ""
-             :hx-vals (json/encode {"event" "order/first-mate"
-                                             "system" "mine"
-                                             "room" room-id})} "Mine"]
-   [:button {:ws-send ""
-             :hx-vals (json/encode {"event" "order/first-mate"
-                                             "system" "torpedo"
-                                             "room" room-id})} "Torpedo"]
-   [:button {:ws-send ""
-             :hx-vals (json/encode {"event" "order/first-mate"
-                                             "system" "drone"
-                                             "room" room-id})} "Drone"]
-   [:button {:ws-send ""
-             :hx-vals (json/encode {"event" "order/first-mate"
-                                             "system" "sonar"
-                                             "room" room-id})} "Sonar"]
-   [:button {:ws-send ""
-             :hx-vals (json/encode {"event" "order/first-mate"
-                                    "system" "silence"
-                                    "room" room-id})} "Silence"]])
+  (letfn [(b [system]
+            [:button {:style {:background-color ({"Mine" "red"
+                                                  "Torpedo" "red"
+                                                  "Drone" "green"
+                                                  "Sonar" "green"
+                                                  "Silence" "yellow"} system)
+                              :height "50px"
+                              :width "50px"
+                              :border-radius "50%"}
+                      :ws-send ""
+                      :hx-vals (json/encode {"event" "order/first-mate"
+                                             "system" (str/lower-case system)
+                                             "room" room-id})} system])]
+    [:div {:style {:display "grid"
+                   :grid-template-rows "1fr 1fr"
+                   :grid-template-columns "1fr 1fr 1fr"
+                   :justify-items "center"
+                   :gap "1em"}}
+     (b "Mine")
+     (b "Drone")
+     (b "Silence")
+     (b "Torpedo")
+     (b "Sonar")]))
 (defmethod player-html :engineer [{room-id :room-id}]
   (letfn [(b [bd]
             (button :room-id room-id
@@ -170,9 +173,9 @@
       "North"
       [:div
        {:style {:display "grid"
-                :grid-template-areas(str "\"yellow2 . .\""
-                                         "\"red2 . yellow3\""
-                                         "\"green3 red3 reactor3\"")}}
+                :grid-template-areas (str "\"yellow2 . .\""
+                                          "\"red2 . yellow3\""
+                                          "\"green3 red3 reactor3\"")}}
        (b :yellow2)
        (b :yellow3)
        (b :red2)
@@ -183,9 +186,9 @@
       "South"
       [:div
        {:style {:display "grid"
-                :grid-template-areas(str "\"green4 . .\""
-                                         "\"yellow4 . red4\""
-                                         "\"red5 reactor4 yellow5\"")}}
+                :grid-template-areas (str "\"green4 . .\""
+                                          "\"yellow4 . red4\""
+                                          "\"red5 reactor4 yellow5\"")}}
        (b :green4)
        (b :yellow4)
        (b :red4)
@@ -196,9 +199,9 @@
       "East"
       [:div
        {:style {:display "grid"
-                :grid-template-areas(str "\"green5 . .\""
-                                         "\"yellow6 . red6\""
-                                         "\"reactor5 green6 reactor6\"")}}
+                :grid-template-areas (str "\"green5 . .\""
+                                          "\"yellow6 . red6\""
+                                          "\"reactor5 green6 reactor6\"")}}
        (b :green5)
        (b :yellow6)
        (b :red6)
