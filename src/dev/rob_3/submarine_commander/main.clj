@@ -387,7 +387,7 @@
                              (->> message
                                   json/parse-string
                                   (reduce (fn [acc [k v]]
-                                            (let [[color role] (string/split k #"-" 2)]
+                                            (let [[color role] (str/split k #"-" 2)]
                                               (if (and role (re-find #"^captain|first-mate|radio-operator|engineer$" role))
                                                 (assoc-in acc [(keyword "team" color) (keyword role)] v)
                                                 acc)))

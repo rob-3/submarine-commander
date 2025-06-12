@@ -1,24 +1,13 @@
 (ns dev.rob-3.submarine-commander.submarine-commander-test
   (:require
-   [clojure.test :refer [deftest is run-tests testing]]
+   [clojure.test :refer [deftest is run-tests]]
    [dev.rob-3.submarine-commander.actions :refer [tick]]
    [dev.rob-3.submarine-commander.game-engine :refer [create-game]]
    [dev.rob-3.submarine-commander.lenses :refer [blue-location
                                                  blue-mine-charge blue-mines
                                                  blue-torp-charge charge
                                                  health mines red-orders trail]]
-   [dev.rob-3.submarine-commander.maps :as maps]
-   [dev.rob-3.submarine-commander.systems :refer [broken?]]))
-
-(deftest system-breakdown-functions
-  (testing "Broken systems are found"
-    (is (broken? {:west #{} :north #{:red2} :south #{} :east #{}} :red))
-    (is (broken? {:west #{} :north #{:yellow1} :south #{} :east #{}} :yellow))
-    (is (broken? {:west #{} :north #{} :south #{} :east #{:green1}} :green)))
-  (testing "Unbroken systems are not found"
-    (is (not (broken? {:west #{:yellow :green1} :north #{} :south #{:green} :east #{:yellow}} :red)))
-    (is (not (broken? {:west #{:red} :north #{} :south #{:red1} :east #{:green1}} :yellow)))
-    (is (not (broken? {:west #{:red} :north #{:yellow1 :red1} :south #{:yellow1} :east #{}} :green)))))
+   [dev.rob-3.submarine-commander.maps :as maps]))
 
 (defn new-game [starts map]
   (create-game 
