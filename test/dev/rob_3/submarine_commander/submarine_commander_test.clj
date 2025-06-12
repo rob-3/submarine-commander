@@ -5,8 +5,9 @@
    [dev.rob-3.submarine-commander.game-engine :refer [create-game]]
    [dev.rob-3.submarine-commander.lenses :refer [blue-location
                                                  blue-mine-charge blue-mines
-                                                 blue-torp-charge charge
-                                                 health mines red-orders trail]]
+                                                 blue-torp-charge breakdowns
+                                                 charge health mines
+                                                 red-orders trail]]
    [dev.rob-3.submarine-commander.maps :as maps]))
 
 (defn new-game [starts map]
@@ -309,6 +310,19 @@
     (is (:error g))
     (is (= [4 4] (blue-location g)))
     (is (= 6 (charge g :team/blue :silence)))))
+
+(deftest all-breakdowns-in-direction-causes-damage
+  (let [g (integration-test
+            :moves [[:blue :east :silence :green5]
+                    [:blue :east :silence :yellow6]
+                    [:blue :east :silence :red6]
+                    [:blue :south :torpedo :reactor4]
+                    [:blue :east :silence :reactor5]
+                    [:blue :east :silence :green6]
+                    [:blue :east :silence :reactor6]]
+            :map maps/empty)]
+    (is (= 3 (health g :team/blue)))
+    (is (empty? (breakdowns g :team/blue)))))
 
 (comment
   (run-tests 'dev.rob-3.submarine-commander.submarine-commander-test))

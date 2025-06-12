@@ -7,6 +7,8 @@
               [2 11] [8 11] [11 11] [2 12] [4 12] [14 12] [4 13] [7 13] [4 14]
               [8 14] [14 14]}})
 
+(def empty {:dimensions [[1 1] [15 15]] :islands #{}})
+
 (defn- within-dimensions? [dimensions [x y]]
   (let [[[x-min y-min] [x-max y-max]] dimensions]
     (boolean (and (<= x-min x x-max)

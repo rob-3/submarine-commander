@@ -2,9 +2,11 @@
   (:require
    [dev.rob-3.submarine-commander.a-star :refer [a* maze-distance] :as a-star]
    [dev.rob-3.submarine-commander.error :refer [err-> err?] :as err]
-   [dev.rob-3.submarine-commander.lenses :refer [charge-up island-map location
-                                                 move orders reset-orders
-                                                 systems trail]]
+   [dev.rob-3.submarine-commander.lenses :refer [break-system breakdowns
+                                                 breakdowns-full? charge-up
+                                                 island-map location move
+                                                 orders reset-orders systems
+                                                 take-damage trail]]
    [dev.rob-3.submarine-commander.maps :as maps]
    [dev.rob-3.submarine-commander.systems :refer [broken?]]))
 
@@ -42,11 +44,12 @@
   (contains? (direction valid-breakdowns) breakdown))
 
 (defn breakdown-system [gs team breakdown direction]
-  (let [gs' (update-in gs [:teams team :breakdowns] conj breakdown)]
+  (let [valid-bd (valid-breakdown? breakdown direction)
+        already-chosen (contains? (breakdowns gs team) breakdown)]
     (cond
-      (not (valid-breakdown? breakdown direction)) (assoc gs :error ::err/illegal-breakdown-value)
-      (= gs gs') (assoc gs :error ::err/illegal-duplicate-selection)
-      :else gs')))
+      (not valid-bd) (assoc gs :error ::err/illegal-breakdown-value)
+      already-chosen (assoc gs :error ::err/illegal-duplicate-selection)
+      :else (break-system gs team breakdown))))
 
 (def max-system-charges
   {:torpedo 3

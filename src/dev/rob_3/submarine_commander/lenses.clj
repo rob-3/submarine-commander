@@ -1,6 +1,8 @@
 (ns dev.rob-3.submarine-commander.lenses
   (:require
-   [com.rpl.specter :refer [LAST END select-one setval transform]]))
+   [clojure.set :as set]
+   [com.rpl.specter :refer [END LAST select-one setval transform]]
+   [dev.rob-3.submarine-commander.actions :refer [valid-breakdowns]]))
 
 (defn orders [gs team]
   (select-one [:teams team :orders] gs))
@@ -16,6 +18,9 @@
 
 (defn health [gs team]
   (select-one [:teams team :health] gs))
+
+(defn take-damage [gs team quantity]
+  (transform [:teams team :health] #(- % quantity) gs))
 
 (defn blue-mines [gs]
   (select-one [:teams :team/blue :mines] gs))
@@ -54,6 +59,22 @@
 
 (defn breakdowns [gs team]
   (select-one [:teams team :breakdowns] gs))
+
+(defn breakdowns-full? [gs team direction]
+  (set/subset? (direction valid-breakdowns)
+               (select-one [:teams team :breakdowns] gs)))
+
+(def breakdown->dir
+  (into {} (for [[dir bds] valid-breakdowns
+                 bd bds]
+             [bd dir])))
+
+(defn break-system [gs team breakdown]
+  (let [gs (transform [:teams team :breakdowns] #(conj % breakdown) gs)
+        direction (breakdown->dir breakdown)]
+    (cond-> gs
+      (breakdowns-full? gs team direction) (-> (take-damage team 1)
+                                               (update-in [:teams team :breakdowns] empty)))))
 
 (defn island-map [gs]
   (select-one [:map] gs))
