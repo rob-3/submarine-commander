@@ -1,0 +1,1 @@
+{:lint-as {dev.rob-3.submarine-commander.error/err-> clojure.core/->}}

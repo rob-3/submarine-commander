@@ -1,9 +1,15 @@
 (ns dev.rob-3.submarine-commander.lenses
   (:require
-   [com.rpl.specter :refer [LAST select-one]]))
+   [com.rpl.specter :refer [LAST END select-one setval transform]]))
+
+(defn orders [gs team]
+  (select-one [:teams team :orders] gs))
 
 (defn red-orders [gs]
-  (select-one [:teams :team/red :orders] gs))
+  (orders gs :team/red))
+
+(defn reset-orders [gs team]
+  (setval [:teams team :orders] {:captain nil :first-mate nil :engineer nil} gs))
 
 (defn blue-torp-charge [gs]
   (select-one [:teams :team/blue :systems :torpedo] gs))
@@ -25,6 +31,12 @@
 (defn trail [gs team]
   (select-one (trail-path team) gs))
 
+(defn update-trail [gs team f & args]
+  (transform (trail-path team) #(apply f % args) gs))
+
+(defn move [gs team new-location]
+  (setval [:teams team :trail END] [new-location] gs))
+
 (defn location [gs team]
   (select-one [(trail-path team) LAST] gs))
 
@@ -37,8 +49,14 @@
 (defn charge [gs team system]
   (select-one [:teams team :systems system] gs))
 
+(defn charge-up [gs team system]
+  (transform [:teams team :systems system] inc gs))
+
 (defn breakdowns [gs team]
   (select-one [:teams team :breakdowns] gs))
+
+(defn island-map [gs]
+  (select-one [:map] gs))
 
 (defn board-of [gs team]
   (let [mines (mines gs team)

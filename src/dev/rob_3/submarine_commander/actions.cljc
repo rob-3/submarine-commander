@@ -1,9 +1,10 @@
 (ns dev.rob-3.submarine-commander.actions
   (:require
    [dev.rob-3.submarine-commander.a-star :refer [a* maze-distance] :as a-star]
-   [dev.rob-3.submarine-commander.error :refer [err?]]
-   [dev.rob-3.submarine-commander.lenses :refer [breakdowns location systems
-                                                 trail]]
+   [dev.rob-3.submarine-commander.error :refer [err-> err?] :as err]
+   [dev.rob-3.submarine-commander.lenses :refer [charge-up island-map location
+                                                 move orders reset-orders
+                                                 systems trail]]
    [dev.rob-3.submarine-commander.maps :as maps]
    [dev.rob-3.submarine-commander.systems :refer [broken?]]))
 
@@ -12,22 +13,24 @@
 
 (defn location? [l] (boolean (and (vector? l) (= 2 (count l)))))
 
-(defn make-move [trail direction island-map distance]
+(defn make-move [gs team direction distance]
   {:pre [(#{:north :south :east :west} direction)]}
-  (loop [trail trail
+  (loop [gs gs
          distance distance]
-    (let [[x y] (last trail)
+    (let [[x y] (location gs team)
           [x' y'] (case direction
                     :north [x (dec y)]
                     :south [x (inc y)]
                     :east [(inc x) y]
-                    :west [(dec x) y])]
+                    :west [(dec x) y])
+          island-map (island-map gs)
+          trail (trail gs team)]
       (cond
-        (= distance 0) trail
-        (contains? (:islands island-map) [x' y']) :err/illegal-island-move
-        (not (and (>= 15 x' 1) (>= 15 y' 1))) :err/illegal-offmap-move
-        (some #{[x' y']} trail) :err/illegal-trail-cross
-        :else (recur (conj trail [x' y']) (dec distance))))))
+        (= distance 0) gs
+        (contains? (:islands island-map) [x' y']) (assoc gs :error ::err/illegal-island-move)
+        (not (and (>= 15 x' 1) (>= 15 y' 1))) (assoc gs :error ::err/illegal-offmap-move)
+        (some #{[x' y']} trail) (assoc gs :error ::err/illegal-trail-cross)
+        :else (recur (move gs team [x' y']) (dec distance))))))
 
 (def valid-breakdowns
   {:west #{:red1 :yellow1 :green1 :green2 :reactor1 :reactor2}
@@ -35,14 +38,15 @@
    :south #{:green4 :yellow4 :red4 :red5 :reactor4 :yellow5}
    :east #{:green5 :yellow6 :red6 :reactor5 :green6 :reactor6}})
 
-(defn breakdown-system [breakdown direction all-breakdowns]
-  (let [bds (direction all-breakdowns)
-        bds' (conj bds breakdown)
-        valid-bds (direction valid-breakdowns)]
+(defn valid-breakdown? [breakdown direction]
+  (contains? (direction valid-breakdowns) breakdown))
+
+(defn breakdown-system [gs team breakdown direction]
+  (let [gs' (update-in gs [:teams team :breakdowns] conj breakdown)]
     (cond
-      (not (contains? valid-bds breakdown)) :err/illegal-breakdown-value
-      (= bds' bds) :err/illegal-duplicate-selection
-      :else (assoc all-breakdowns direction bds'))))
+      (not (valid-breakdown? breakdown direction)) (assoc gs :error ::err/illegal-breakdown-value)
+      (= gs gs') (assoc gs :error ::err/illegal-duplicate-selection)
+      :else gs')))
 
 (def max-system-charges
   {:torpedo 3
@@ -60,49 +64,41 @@
 
 (def system? (set (keys max-system-charges)))
 
+(defn fully-charged? [gs team system]
+  (let [current-charge (system (systems gs team))
+        max-charge (system max-system-charges)]
+    (= current-charge max-charge)))
+
 ;; TODO What do the rules say about charging systems?
 ;; It's not clear if the first mate MUST charge a system with each move.
 ;; My ruling is that they MUST if an empty system exists (not including "scenario"
 ;; if it is not used), otherwise they should confirm charging none.
 ;; A move should never happen without any UI confirmation from the first mate.
-(defn charge-system [system-to-charge current-charges]
-  (let [current-charge (system-to-charge current-charges)
-        max-charge (system-to-charge max-system-charges)
-        fully-charged (= current-charges max-system-charges)]
+(defn charge-system [gs team system-to-charge]
+  (let [fully-charged (fully-charged? gs team system-to-charge)]
     (cond
-      (= system-to-charge :none) (if fully-charged current-charges :err/illegal-noncharge)
-      (< current-charge max-charge) (update current-charges system-to-charge inc)
-      :else :err/illegal-system-charge)))
+      (and (= system-to-charge :none) fully-charged) gs
+      (= system-to-charge :none) (assoc gs :error ::err/illegal-noncharge)
+      (not fully-charged) (charge-up gs team system-to-charge)
+      :else (assoc gs :error ::err/illegal-system-charge))))
 
-(defn attempt-move [game-map {:keys [trail systems breakdowns orders] :as state}]
-  {:pre [trail systems breakdowns orders]}
+(defn attempt-move [gs team]
   ;; FIXME pass map via game state
-  (let [direction (:captain orders)
+  (let [orders (orders gs team)
+        direction (:captain orders)
         system-to-charge (:first-mate orders)
         breakdown (:engineer orders)]
     (if-not (and direction system-to-charge breakdown)
-      state
-      (let [trail' (make-move trail direction game-map 1)
-            systems' (charge-system system-to-charge systems)
-            breakdowns' (breakdown-system breakdown direction breakdowns)]
-        (cond
-          ;; FIXME this seems wrong
-          (= trail' :err/illegal-island-move) :err/illegal-island-move
-          (= trail' :err/illegal-offmap-move) :err/illegal-offmap-move
-          (= trail' :err/illegal-trail-cross) :err/illegal-trail-cross
-          (= systems' :err/illegal-system-charge) :err/illegal-system-charge
-          (= systems' :err/illegal-noncharge) :err/illegal-noncharge
-          (= breakdowns' :err/illegal-breakdown-value) :err/illegal-breakdown-value
-          (= breakdowns' :err/illegal-duplicate-selection) :err/illegal-duplicate-selection
-          :else (-> state
-                    (assoc :trail trail')
-                    (assoc :systems systems')
-                    (assoc :breakdowns breakdowns')
-                    (assoc :orders {:captain nil :first-mate nil :engineer nil})))))))
+      gs
+      (err-> gs
+             (make-move team direction 1)
+             (charge-system team system-to-charge)
+             (breakdown-system team breakdown direction)
+             (reset-orders team)))))
 
 (defn surface [{:keys [surfaced] :as state}]
   (if surfaced
-    :err/illegal-redundant-surface
+    ::err/illegal-redundant-surface
     (assoc state :surfaced true)))
 
 (defn adjacent? [location1 location2]
@@ -128,9 +124,9 @@
         adj? (adjacent? sub-location mine-location)
         already-laid? (contains? mines mine-location)]
     (cond
-      already-laid? :err/illegal-mine-already-laid
-      in-trail? :err/illegal-mine-in-trail
-      (not adj?) :err/illegal-mine-not-adj
+      already-laid? ::err/illegal-mine-already-laid
+      in-trail? ::err/illegal-mine-in-trail
+      (not adj?) ::err/illegal-mine-not-adj
       :else (update-in game-state [:teams team-laying :mines] conj mine-location))))
 
 (defn explosion-wrt
@@ -163,8 +159,8 @@
         mines (get-in game-state [:teams team-detonating :mines])
         mine-exists? (contains? mines mine-location)]
     (cond
-      weapons-down? :err/illegal-weapons-are-broken
-      (not mine-exists?) :err/illegal-no-such-mine
+      weapons-down? ::err/illegal-weapons-are-broken
+      (not mine-exists?) ::err/illegal-no-such-mine
       :else (-> game-state
                 (update-in [:teams team-detonating :mines] disj mine-location)
                 (explosion-at mine-location)))))
@@ -181,9 +177,9 @@
                           :finish firing-to)
                       :cost
                       (<= 4))]
-     (if (not in-range?)
-       :err/illegal-out-of-range
-       (explosion-at game-state firing-to))))
+    (if (not in-range?)
+      ::err/illegal-out-of-range
+      (explosion-at game-state firing-to))))
 
 (defn use-sonar [game-state team-using team-targeted]
   {:pre [(team? team-using) (team? team-targeted)]}
@@ -223,23 +219,14 @@
                                      :team team-using
                                      :answer are-they-there?})))
 
-(defn use-silence [game-state team-moving direction distance charge breakdown]
-  {:pre [(team? team-moving)
+(defn use-silence [gs team direction distance charge breakdown]
+  {:pre [(team? team)
          (#{:north :south :east :west} direction)
          (<= 0 distance 4)]}
-  (let [island-map (:map game-state)
-        trail (trail game-state team-moving)
-        systems (systems game-state team-moving)
-        breakdowns (breakdowns game-state team-moving)
-        trail' (make-move trail direction island-map distance)
-        systems' (charge-system charge systems)
-        breakdowns' (breakdown-system breakdown direction breakdowns)]
-    (if (keyword? trail')
-      trail'
-      (-> game-state
-        (assoc-in [:teams team-moving :trail] trail')
-        (assoc-in [:teams team-moving :systems] systems')
-        (assoc-in [:teams team-moving :breakdowns] breakdowns')))))
+  (err-> gs
+         (make-move team direction distance)
+         (charge-system team charge)
+         (breakdown-system team breakdown direction)))
 
 (defn activate-system [game-state {:keys [system team-activating params]}]
   {:pre [(team? team-activating)
@@ -248,8 +235,8 @@
         charged? (= (system systems) (system max-system-charges))
         disabled? (broken? breakdowns (system->color system))]
     (cond
-      (not charged?) :err/system-uncharged
-      disabled? :err/system-down
+      (not charged?) ::err/system-uncharged
+      disabled? ::err/system-down
       :else (as-> game-state game-state
               (assoc-in game-state [:teams team-activating :systems system] 0)
               (case system
@@ -262,8 +249,8 @@
                 :drone (do
                          (assert (team? (:target-team params)))
                          (if (sector? (:guessed-sector params))
-                          (use-drone game-state team-activating (:target-team params) (:guessed-sector params))
-                          :err/not-a-sector))
+                           (use-drone game-state team-activating (:target-team params) (:guessed-sector params))
+                           ::err/not-a-sector))
                 :sonar (do
                          (assert (team? (:target-team params)))
                          (use-sonar game-state team-activating (:target-team params)))
@@ -274,8 +261,8 @@
                            (if (= :nomove (:direction params))
                              game-state
                              (if (<= (:distance params) 4)
-                              (use-silence game-state team-activating (:direction params) (:distance params) (:charge params) (:breakdown params))
-                              :err/silence-too-far))))))))
+                               (use-silence game-state team-activating (:direction params) (:distance params) (:charge params) (:breakdown params))
+                               ::err/silence-too-far))))))))
 
 (defn update-captains-orders [orders direction]
   {:pre [(#{:north :south :east :west} direction)]}
@@ -320,13 +307,11 @@
                                                                    :distance distance
                                                                    :charge charge
                                                                    :breakdown breakdown}}))
-        gs' (if (err? gs')
+        gs' (if (or (err? gs') (err? (:error gs')))
               (assoc game-state :error gs')
               gs')
-        ts' (attempt-move (:map gs') (get-in gs' [:teams team]))]
-    (if (err? ts')
-      (assoc gs' :error ts')
-      (assoc-in gs' [:teams team] ts'))))
+        gs'' (attempt-move gs' team)]
+    gs''))
 
 (comment
   (require '[dev.rob-3.submarine-commander.game-engine :as game-engine])
@@ -345,7 +330,7 @@
                    :engineer nil}
           :surfaced false
           :mines #{}})
-  (attempt-move maps/alpha x)
+  ;(attempt-move maps/alpha x)
   (surface x)
   (lay-mine game-engine/state :team/red [1 2])
   (explosion-wrt x [2 6])
