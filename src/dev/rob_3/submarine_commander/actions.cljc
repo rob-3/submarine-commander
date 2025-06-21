@@ -3,10 +3,10 @@
    [dev.rob-3.submarine-commander.a-star :refer [a* maze-distance] :as a-star]
    [dev.rob-3.submarine-commander.error :refer [err-> err?] :as err]
    [dev.rob-3.submarine-commander.lenses :refer [break-system breakdowns
-                                                 breakdowns-full? charge-up
-                                                 island-map location move
-                                                 orders reset-orders systems
-                                                 take-damage trail]]
+                                                 charge-up island-map location
+                                                 move orders reset-orders
+                                                 systems trail
+                                                 valid-breakdown?]]
    [dev.rob-3.submarine-commander.maps :as maps]
    [dev.rob-3.submarine-commander.systems :refer [broken?]]))
 
@@ -33,15 +33,6 @@
         (not (and (>= 15 x' 1) (>= 15 y' 1))) (assoc gs :error ::err/illegal-offmap-move)
         (some #{[x' y']} trail) (assoc gs :error ::err/illegal-trail-cross)
         :else (recur (move gs team [x' y']) (dec distance))))))
-
-(def valid-breakdowns
-  {:west #{:red1 :yellow1 :green1 :green2 :reactor1 :reactor2}
-   :north #{:yellow2 :yellow3 :red2 :green3 :red3 :reactor3}
-   :south #{:green4 :yellow4 :red4 :red5 :reactor4 :yellow5}
-   :east #{:green5 :yellow6 :red6 :reactor5 :green6 :reactor6}})
-
-(defn valid-breakdown? [breakdown direction]
-  (contains? (direction valid-breakdowns) breakdown))
 
 (defn breakdown-system [gs team breakdown direction]
   (let [valid-bd (valid-breakdown? breakdown direction)

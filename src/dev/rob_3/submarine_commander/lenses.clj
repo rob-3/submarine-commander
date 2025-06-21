@@ -1,8 +1,7 @@
 (ns dev.rob-3.submarine-commander.lenses
   (:require
    [clojure.set :as set]
-   [com.rpl.specter :refer [END LAST select-one setval transform]]
-   [dev.rob-3.submarine-commander.actions :refer [valid-breakdowns]]))
+   [com.rpl.specter :refer [END LAST select-one setval transform]]))
 
 (defn orders [gs team]
   (select-one [:teams team :orders] gs))
@@ -61,6 +60,15 @@
   (select-one [:teams team :breakdowns] gs))
 
 (def all-reactors #{:reactor1 :reactor2 :reactor3 :reactor4 :reactor5 :reactor6})
+
+(def valid-breakdowns
+  {:west #{:red1 :yellow1 :green1 :green2 :reactor1 :reactor2}
+   :north #{:yellow2 :yellow3 :red2 :green3 :red3 :reactor3}
+   :south #{:green4 :yellow4 :red4 :red5 :reactor4 :yellow5}
+   :east #{:green5 :yellow6 :red6 :reactor5 :green6 :reactor6}})
+
+(defn valid-breakdown? [breakdown direction]
+  (contains? (direction valid-breakdowns) breakdown))
 
 (defn breakdowns-full? [gs team direction]
   (let [bds (select-one [:teams team :breakdowns] gs)]
