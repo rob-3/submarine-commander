@@ -320,7 +320,7 @@
                     [:blue :east :silence :reactor5]
                     [:blue :east :silence :green6]
                     [:blue :east :silence :reactor6]]
-            :map maps/empty)]
+            :map maps/empty-map)]
     (is (= 3 (health g :team/blue)))
     (is (empty? (breakdowns g :team/blue)))))
 
@@ -334,7 +334,7 @@
                     [:blue :west :silence :reactor1]
                     [:blue :west :silence :reactor2]
                     [:blue :north :torpedo :reactor3]]
-            :map maps/empty)]
+            :map maps/empty-map)]
     (is (= 3 (health g :team/blue)))
     (is (empty? (breakdowns g :team/blue)))))
 

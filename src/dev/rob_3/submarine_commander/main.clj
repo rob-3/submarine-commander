@@ -3,7 +3,6 @@
   (:require
    [cheshire.core :as json]
    [clojure.core.async :refer [<!! >!!] :as a]
-   [clojure.set :as set]
    [clojure.string :as str]
    [clojure.walk :refer [keywordize-keys]]
    [com.rpl.specter :refer [transform]]
@@ -163,7 +162,7 @@
             (button :room-id room-id
                     :event :order/engineer
                     :breakdown bd
-                    :disabled (contains? (->> bds vals (apply set/union)) bd)))]
+                    :disabled (contains? bds bd)))]
     [:div
      {:style {:display "flex"}}
      [:div
