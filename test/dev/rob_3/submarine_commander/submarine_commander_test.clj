@@ -324,5 +324,19 @@
     (is (= 3 (health g :team/blue)))
     (is (empty? (breakdowns g :team/blue)))))
 
+(deftest all-reactors-causes-damage
+  (let [g (integration-test
+            :moves [[:blue :east :silence :reactor5]
+                    [:blue :east :silence :reactor6]
+                    [:blue :south :silence :reactor4]
+                    ;; we need enough space to not cross trail
+                    [:blue :south :silence :green4]
+                    [:blue :west :silence :reactor1]
+                    [:blue :west :silence :reactor2]
+                    [:blue :north :torpedo :reactor3]]
+            :map maps/empty)]
+    (is (= 3 (health g :team/blue)))
+    (is (empty? (breakdowns g :team/blue)))))
+
 (comment
   (run-tests 'dev.rob-3.submarine-commander.submarine-commander-test))

@@ -60,10 +60,13 @@
 (defn breakdowns [gs team]
   (select-one [:teams team :breakdowns] gs))
 
-(defn breakdowns-full? [gs team direction]
-  (set/subset? (direction valid-breakdowns)
-               (select-one [:teams team :breakdowns] gs)))
+(def all-reactors #{:reactor1 :reactor2 :reactor3 :reactor4 :reactor5 :reactor6})
 
+(defn breakdowns-full? [gs team direction]
+  (let [bds (select-one [:teams team :breakdowns] gs)]
+    (or (set/subset? (direction valid-breakdowns) bds)
+        (set/subset? all-reactors bds))))
+                  
 (def breakdown->dir
   (into {} (for [[dir bds] valid-breakdowns
                  bd bds]
