@@ -92,7 +92,7 @@
 
 (defn board-of [gs team]
   (let [mines (mines gs team)
-        trail (trail gs team)
+        trail (set (trail gs team))
         location (location gs team)
         islands (select-one [:map :islands] gs)]
     (loop [x 1
