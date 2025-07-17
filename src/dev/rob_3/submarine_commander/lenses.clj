@@ -151,7 +151,13 @@
             board))
         trail-chars (let [middle (->> (partition 3 1 t)
                                       (mapv #(apply three-points->char %)))
-                          full-path (cons \X (conj middle \*))]
+                          arrow (when (>= (count t) 2)
+                                  (case (apply dir-of (take-last 2 t))
+                                   :up \▲
+                                   :down \▼
+                                   :left \◀
+                                   :right \▶))
+                          full-path (cons \● (conj middle arrow))]
                       full-path)]
     (loop [board trailess-board
            [[t c] & trail] (map vector t trail-chars)]
