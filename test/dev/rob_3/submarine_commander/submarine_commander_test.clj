@@ -40,9 +40,9 @@
                     :team :team/blue))]
     (is (= (blue-location g) [2 1]))))
 
-(defn integration-test [& {:keys [starts map moves]
-                           :or {map maps/empty-map
-                                starts {:blue [1 1] :red [15 15]}}}]
+(defn engine-test [& {:keys [starts map moves]
+                      :or {map maps/empty-map
+                           starts {:blue [1 1] :red [15 15]}}}]
   (loop [game (new-game starts map)
          [move & moves] moves]
     (if (nil? move)
@@ -107,73 +107,73 @@
     (is (= (blue-location g) [2 1]))))
 
 (deftest integration2
-  (let [game (integration-test :moves [[:blue :east :torpedo :yellow6]
-                                       ;; FIXME finish test format
-                                       [:blue :south :torpedo :yellow4]
-                                       [:blue :west :torpedo :yellow1]
-                                       [:red :west :drone :yellow1]
-                                       [:red :west :drone :red1]
-                                       [:red :west :drone :reactor1]
-                                       [:red :west :drone :reactor2]
-                                       [:red :drone :team/blue :sector/five]])
+  (let [game (engine-test :moves [[:blue :east :torpedo :yellow6]
+                                  ;; FIXME finish test format
+                                  [:blue :south :torpedo :yellow4]
+                                  [:blue :west :torpedo :yellow1]
+                                  [:red :west :drone :yellow1]
+                                  [:red :west :drone :red1]
+                                  [:red :west :drone :reactor1]
+                                  [:red :west :drone :reactor2]
+                                  [:red :drone :team/blue :sector/five]])
         orders (red-orders game)]
     (is (map? orders))))
 
 (deftest system-charges
-  (let [game (integration-test :moves [[:blue :east :torpedo :yellow6]
-                                       [:blue :east :torpedo :red6]
-                                       [:blue :east :torpedo :reactor6]])
+  (let [game (engine-test :moves [[:blue :east :torpedo :yellow6]
+                                  [:blue :east :torpedo :red6]
+                                  [:blue :east :torpedo :reactor6]])
         charges (blue-torp-charge game)]
     (is (= 3 charges))))
 
 (deftest wrong-path
-  (let [g (integration-test :moves [[:blue :east :torpedo :yellow6]
-                                    [:blue :south :torpedo :yellow4]]
-                            :map maps/alpha)]
+  (let [g (engine-test :moves [[:blue :east :torpedo :yellow6]
+                               [:blue :south :torpedo :yellow4]]
+                     :map maps/alpha)]
     (is (= [2 1] (blue-location g)))
     (is (= 1 (blue-torp-charge g)))))
 
 (deftest fire-torpedo
-  (let [game (integration-test :starts {:blue [1 1] :red [7 1]}
-                               :moves [[:red :west :torpedo :yellow1]
-                                       [:red :west :torpedo :reactor1]
-                                       [:red :west :torpedo :reactor2]
-                                       [:red :torpedo [1 1]]])
+  (let [game (engine-test :starts {:blue [1 1] :red [7 1]}
+                        :moves [[:red :west :torpedo :yellow1]
+                                [:red :west :torpedo :reactor1]
+                                [:red :west :torpedo :reactor2]
+                                [:red :torpedo [1 1]]])
         blue-health (health game :team/blue)]
     (is (= 2 blue-health))
     (is (nil? (:error game)))))
 
 (deftest fire-torpedo-too-far
-  (let [game (integration-test :starts {:blue [1 1] :red [12 1]}
-                               :moves [[:red :west :torpedo :yellow1]
-                                       [:red :west :torpedo :reactor1]
-                                       [:red :west :torpedo :reactor2]
-                                       [:red :torpedo [1 2]]])
+  (let [game (engine-test :starts {:blue [1 1] :red [12 1]}
+                        :moves [[:red :west :torpedo :yellow1]
+                                [:red :west :torpedo :reactor1]
+                                [:red :west :torpedo :reactor2]
+                                [:red :torpedo [1 2]]])
         blue-health (health game :team/blue)]
     (is (:error game))
     (is (= 4 blue-health))))
 
 (deftest illegal-lay-mine
-  (let [g (integration-test :moves [[:blue :east :mine :yellow6]
-                                    [:blue :east :mine :reactor5]
-                                    [:blue :east :mine :reactor6]
-                                    ;; flipped x/y from what is possible
-                                    [:blue :mine [2 4]]])]
+  (let [g (engine-test :moves [[:blue :east :mine :yellow6]
+                               [:blue :east :mine :reactor5]
+                               [:blue :east :mine :reactor6]
+                               ;; flipped x/y from what is possible
+                               [:blue :mine [2 4]]])]
     (is (= (blue-mines g) #{}))
     (is (= (blue-mine-charge g) 3))
     (is (:error g))))
 
 (deftest lay-a-mine
-  (let [g (integration-test :moves [[:blue :east :mine :yellow6]
-                                    [:blue :east :mine :reactor5]
-                                    [:blue :east :mine :reactor6]
-                                    [:blue :mine [4 2]]])]
+  (let [g (engine-test :moves [[:blue :east :mine :yellow6]
+                               [:blue :east :mine :reactor5]
+                               [:blue :east :mine :reactor6]
+                               [:blue :mine [4 2]]])]
     (is (= (blue-mines g) #{[4 2]}))
     (is (= (blue-mine-charge g) 0))
     (is (nil? (:error g)))))
 
 (deftest detonate-mine
-  (let [g (integration-test
+  (let [g (engine-test
            :starts {:blue [1 1] :red [5 2]}
            :moves [[:blue :east :mine :yellow6]
                    [:blue :east :mine :reactor5]
@@ -186,7 +186,7 @@
     (is (= (mines g :team/blue) #{}))))
 
 (deftest illegal-mine-detonation
-  (let [g (integration-test
+  (let [g (engine-test
            :starts {:blue [1 1] :red [5 2]}
            :moves [[:blue :east :mine :yellow6]
                    [:blue :east :mine :reactor5]
@@ -201,7 +201,7 @@
     (is (= (mines g :team/blue) #{[5 2]}))))
 
 (deftest drone-gives-true
-  (let [g (integration-test
+  (let [g (engine-test
            :moves [[:blue :east :drone :yellow6]
                    [:blue :east :drone :red6]
                    [:blue :east :drone :reactor6]
@@ -212,7 +212,7 @@
     (is (nil? (:error g)))))
 
 (deftest drone-gives-false
-  (let [g (integration-test
+  (let [g (engine-test
            :moves [[:blue :east :drone :yellow6]
                    [:blue :east :drone :red6]
                    [:blue :east :drone :reactor6]
@@ -223,7 +223,7 @@
     (is (nil? (:error g)))))
 
 (deftest drone-sector-oob
-  (let [g (integration-test
+  (let [g (engine-test
            :moves [[:blue :east :drone :yellow6]
                    [:blue :east :drone :red6]
                    [:blue :east :drone :reactor6]
@@ -234,7 +234,7 @@
     (is (= 4 (charge g :team/blue :drone)))))
 
 (deftest silence-successful
-  (let [g (integration-test
+  (let [g (engine-test
            :moves [[:blue :east :silence :reactor5]
                    [:blue :east :silence :reactor6]
                    [:blue :east :silence :red6]
@@ -248,7 +248,7 @@
     (is (= 1 (charge g :team/blue :silence)))))
 
 (deftest silence-only-2-spaces
-  (let [g (integration-test
+  (let [g (engine-test
            :moves [[:blue :east :silence :reactor5]
                    [:blue :east :silence :reactor6]
                    [:blue :east :silence :red6]
@@ -262,7 +262,7 @@
     (is (zero? (charge g :team/blue :silence)))))
 
 (deftest silence-move-zero
-  (let [g (integration-test
+  (let [g (engine-test
            :moves [[:blue :east :silence :reactor5]
                    [:blue :east :silence :reactor6]
                    [:blue :east :silence :red6]
@@ -276,7 +276,7 @@
     (is (zero? (charge g :team/blue :silence)))))
 
 (deftest illegal-silence-not-enough-charge
-  (let [g (integration-test
+  (let [g (engine-test
            :moves [[:blue :east :silence :reactor5]
                    [:blue :east :silence :reactor6]
                    [:blue :east :silence :red6]
@@ -288,7 +288,7 @@
     (is (= 5 (charge g :team/blue :silence)))))
 
 (deftest illegal-silence-illegal-wrong-direction
-  (let [g (integration-test
+  (let [g (engine-test
            :moves [[:blue :east :silence :reactor5]
                    [:blue :east :silence :reactor6]
                    [:blue :east :silence :red6]
@@ -301,7 +301,7 @@
     (is (= 6 (charge g :team/blue :silence)))))
 
 (deftest illegal-silence-too-far
-  (let [g (integration-test
+  (let [g (engine-test
            :moves [[:blue :east :silence :reactor5]
                    [:blue :east :silence :reactor6]
                    [:blue :east :silence :red6]
@@ -314,7 +314,7 @@
     (is (= 6 (charge g :team/blue :silence)))))
 
 (deftest all-breakdowns-in-direction-causes-damage
-  (let [g (integration-test
+  (let [g (engine-test
            :moves [[:blue :east :silence :green5]
                    [:blue :east :silence :yellow6]
                    [:blue :east :silence :red6]
@@ -326,7 +326,7 @@
     (is (empty? (breakdowns g :team/blue)))))
 
 (deftest all-reactors-causes-damage
-  (let [g (integration-test
+  (let [g (engine-test
            :moves [[:blue :east :silence :reactor5]
                    [:blue :east :silence :reactor6]
                    [:blue :south :silence :reactor4]
@@ -340,7 +340,7 @@
     (is (empty? (breakdowns g :team/blue)))))
 
 (deftest mismatched-order
-  (let [g (integration-test
+  (let [g (engine-test
            :moves [[:blue :east :silence :reactor2]])]
     (is (nil? (:error g)))
     (is (= 0 (charge g :team/blue :silence)))
@@ -348,13 +348,13 @@
     (is (= {:captain :east :first-mate :silence :engineer :reactor2} (orders g :team/blue)))))
 
 (deftest game-status
-  (let [g (integration-test)]
+  (let [g (engine-test)]
     (is (= {:status :in-progress
             :alive #{:team/blue :team/red}
             :dead #{}} (status g)))))
 
 (deftest game-over
-  (let [g (integration-test
+  (let [g (engine-test
            :starts {:blue [1 1] :red [4 1]}
            :moves [[:blue :east :torpedo :reactor5]
                    [:blue :east :torpedo :reactor6]
