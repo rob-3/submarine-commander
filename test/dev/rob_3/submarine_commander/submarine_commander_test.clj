@@ -6,8 +6,8 @@
    [dev.rob-3.submarine-commander.lenses :refer [blue-location
                                                  blue-mine-charge blue-mines
                                                  blue-torp-charge breakdowns
-                                                 charge health mines
-                                                 red-orders trail]]
+                                                 charge health location mines
+                                                 orders red-orders trail]]
    [dev.rob-3.submarine-commander.maps :as maps]))
 
 (defn new-game [starts map]
@@ -337,6 +337,15 @@
             :map maps/empty-map)]
     (is (= 3 (health g :team/blue)))
     (is (empty? (breakdowns g :team/blue)))))
+
+(deftest mismatched-order
+  (let [g (integration-test
+            :moves [[:blue :east :silence :reactor2]]
+            :map maps/empty-map)]
+    (is (nil? (:error g)))
+    (is (= 0 (charge g :team/blue :silence)))
+    (is (= [1 1] (location g :team/blue)))
+    (is (= {:captain :east :first-mate :silence :engineer :reactor2} (orders g :team/blue)))))
 
 (comment
   (run-tests 'dev.rob-3.submarine-commander.submarine-commander-test))

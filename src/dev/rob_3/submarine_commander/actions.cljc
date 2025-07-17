@@ -2,11 +2,11 @@
   (:require
    [dev.rob-3.submarine-commander.a-star :refer [a* maze-distance] :as a-star]
    [dev.rob-3.submarine-commander.error :refer [err-> err?] :as err]
-   [dev.rob-3.submarine-commander.lenses :refer [break-system breakdowns
-                                                 charge-up island-map location
-                                                 move orders reset-orders
-                                                 systems trail
-                                                 valid-breakdown?]]
+   [dev.rob-3.submarine-commander.lenses :refer [break-system breakdown->dir
+                                                 breakdowns charge-up
+                                                 island-map location move
+                                                 orders reset-orders systems
+                                                 trail valid-breakdown?]]
    [dev.rob-3.submarine-commander.maps :as maps]
    [dev.rob-3.submarine-commander.systems :refer [broken?]]))
 
@@ -82,7 +82,10 @@
         direction (:captain orders)
         system-to-charge (:first-mate orders)
         breakdown (:engineer orders)]
-    (if-not (and direction system-to-charge breakdown)
+    (if (or (nil? direction)
+            (nil? system-to-charge)
+            (nil? breakdown)
+            (not= direction (breakdown->dir breakdown)))
       gs
       (err-> gs
              (make-move team direction 1)
@@ -273,39 +276,42 @@
   (assoc orders :engineer breakdown))
 
 (defn tick [game-state & {:keys [team action direction system breakdown mine guess target target-team move distance charge]}]
-  (let [team-state (get-in game-state [:teams team])
-        orders (:orders team-state)
-        gs' (case action
-              :order/captain (let [orders' (update-captains-orders orders direction)]
-                               (assoc-in game-state [:teams team :orders] orders'))
-              :order/first-mate (let [orders' (update-firstmate-orders orders system)]
+  (if (err? (:error game-state))
+    game-state
+    (let [team-state (get-in game-state [:teams team])
+          orders (:orders team-state)
+          gs' (case action
+                :order/captain (let [orders' (update-captains-orders orders direction)]
+                                 (assoc-in game-state [:teams team :orders] orders'))
+                :order/first-mate (let [orders' (update-firstmate-orders orders system)]
+                                    (assoc-in game-state [:teams team :orders] orders'))
+                :order/engineer (let [orders' (update-engineer-orders orders breakdown)]
                                   (assoc-in game-state [:teams team :orders] orders'))
-              :order/engineer (let [orders' (update-engineer-orders orders breakdown)]
-                                (assoc-in game-state [:teams team :orders] orders'))
-              :order/mine (activate-system game-state {:system :mine
-                                                       :team-activating team
-                                                       :params {:location target}})
-              :order/detonate (detonate-mine game-state team mine)
-              :order/torpedo (activate-system game-state {:system :torpedo
+                :order/mine (activate-system game-state {:system :mine
+                                                         :team-activating team
+                                                         :params {:location target}})
+                :order/detonate (detonate-mine game-state team mine)
+                :order/torpedo (activate-system game-state {:system :torpedo
+                                                            :team-activating team
+                                                            :params {:target target}})
+                :order/drone (activate-system game-state {:system :drone
                                                           :team-activating team
-                                                          :params {:target target}})
-              :order/drone (activate-system game-state {:system :drone
-                                                        :team-activating team
-                                                        :params {:target-team target-team :guessed-sector guess}})
-              :order/sonar (activate-system game-state {:system :sonar
-                                                        :team-activating team
-                                                        :params {:target-team target-team}})
-              :order/silence (activate-system game-state {:system :silence
+                                                          :params {:target-team target-team :guessed-sector guess}})
+                :order/sonar (activate-system game-state {:system :sonar
                                                           :team-activating team
-                                                          :params {:direction move
-                                                                   :distance distance
-                                                                   :charge charge
-                                                                   :breakdown breakdown}}))
-        gs' (if (or (err? gs') (err? (:error gs')))
-              (assoc game-state :error gs')
-              gs')
-        gs'' (attempt-move gs' team)]
-    gs''))
+                                                          :params {:target-team target-team}})
+                :order/silence (activate-system game-state {:system :silence
+                                                            :team-activating team
+                                                            :params {:direction move
+                                                                     :distance distance
+                                                                     :charge charge
+                                                                     :breakdown breakdown}}))
+          gs'' (cond
+                 (err? gs') (assoc game-state :error gs')
+                 (err? (:error gs')) (assoc game-state :error (:error gs'))
+                 :else gs')
+          gs''' (attempt-move gs'' team)]
+      gs''')))
 
 (comment
   (require '[dev.rob-3.submarine-commander.game-engine :as game-engine])
