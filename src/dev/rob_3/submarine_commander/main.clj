@@ -62,15 +62,19 @@
 
 (defn board-html [board]
   [:div {:style {:display "grid"
+                 :font-family "monospace"
+                 :gap 0
+                 :letter-spacing 0
+                 :line-height 1
+                 :font-size "30px"
                  :grid-template-columns "repeat(15, 20px)"
                  :text-align "center"}}
-   (map #(vector :span {:style {:height "20px" :width "20px"}}
-                 (case %
-                   :location \X
-                   :mine \M
-                   :trail \'
-                   :island \#
-                   :empty \·)) (flatten board))])
+   (str/join "\n" (map #(str/join (map (fn [x] 
+                                         (case x
+                                           :mine \M
+                                           :island \#
+                                           :empty \·
+                                           x)) %)) board))])
 
 (defn breakdown->css-color [breakdown]
   (-> (re-find #"(?:red|green|yellow)" (name breakdown))

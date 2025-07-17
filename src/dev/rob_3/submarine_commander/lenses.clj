@@ -74,7 +74,7 @@
   (let [bds (select-one [:teams team :breakdowns] gs)]
     (or (set/subset? (direction valid-breakdowns) bds)
         (set/subset? all-reactors bds))))
-                  
+
 (def breakdown->dir
   (into {} (for [[dir bds] valid-breakdowns
                  bd bds]
@@ -90,26 +90,73 @@
 (defn island-map [gs]
   (select-one [:map] gs))
 
+(defn dir-of [[x1 y1] [x2 y2]]
+  (cond
+    (and (= x1 x2) (= y1 (dec y2))) :down
+    (and (= x1 x2) (= y1 (inc y2))) :up
+    (and (= x1 (dec x2)) (= y1 y2)) :right
+    (and (= x1 (inc x2)) (= y1 y2)) :left
+    :else nil))
+
+(comment
+  (dir-of [1 1] [1 2]))
+
+(def dirs->box-drawing
+  {[:left :left] \─
+   [:left :down] \┌
+   [:left :up] \└
+   [:up :right] \┌
+   [:up :up] \│
+   [:up :left] \┐
+   [:right :right] \─
+   [:right :down] \┐
+   [:right :up] \┘
+   [:down :down] \│
+   [:down :right] \└
+   [:down :left] \┘
+   [nil :left] \─
+   [nil :right] \─
+   [nil :up] \│
+   [nil :down] \│
+   [:left nil] \─
+   [:right nil] \─
+   [:up nil] \│
+   [:down nil] \│})
+
+(defn three-points->char [prev cur next]
+  (dirs->box-drawing [(dir-of prev cur)
+                      (dir-of cur next)]))
+
 (defn board-of [gs team]
   (let [mines (mines gs team)
-        trail (set (trail gs team))
+        t (trail gs team)
         location (location gs team)
-        islands (select-one [:map :islands] gs)]
-    (loop [x 1
-           y 1
-           board []]
-      (if (<= y 15)
-        (let [x' (if (= x 15) 1 (inc x))
-              y' (if (= x 15) (inc y) y)]
-          (recur x' y' (update board 
-                               (dec y) 
-                               (fnil conj []) 
-                               (cond
-                                 (= location [x y]) :location
-                                 (contains? mines [x y]) :mine
-                                 (contains? trail [x y]) :trail
-                                 (contains? islands [x y]) :island
-                                 :else :empty))))
+        islands (select-one [:map :islands] gs)
+        trailess-board
+        (loop [x 1
+               y 1
+               board []]
+          (if (<= y 15)
+            (let [x' (if (= x 15) 1 (inc x))
+                  y' (if (= x 15) (inc y) y)]
+              (recur x' y' (update board
+                                   (dec y)
+                                   (fnil conj [])
+                                   (cond
+                                     (= location [x y]) :location
+                                     (contains? mines [x y]) :mine
+                                       ;;(contains? trail [x y]) :trail
+                                     (contains? islands [x y]) :island
+                                     :else :empty))))
+            board))
+        trail-chars (let [middle (->> (partition 3 1 t)
+                                      (mapv #(apply three-points->char %)))
+                          full-path (cons \X (conj middle \*))]
+                      full-path)]
+    (loop [board trailess-board
+           [[t c] & trail] (map vector t trail-chars)]
+      (if c
+        (recur (assoc-in board (reverse (map dec t)) c) trail)
         board))))
 
 (defn team-of [gs player-id]
