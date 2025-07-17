@@ -7,7 +7,8 @@
                                                  blue-mine-charge blue-mines
                                                  blue-torp-charge breakdowns
                                                  charge health location mines
-                                                 orders red-orders trail]]
+                                                 orders red-orders status
+                                                 trail]]
    [dev.rob-3.submarine-commander.maps :as maps]))
 
 (defn new-game [starts map]
@@ -345,6 +346,29 @@
     (is (= 0 (charge g :team/blue :silence)))
     (is (= [1 1] (location g :team/blue)))
     (is (= {:captain :east :first-mate :silence :engineer :reactor2} (orders g :team/blue)))))
+
+(deftest game-status
+  (let [g (integration-test)]
+    (is (= {:status :in-progress
+            :alive #{:team/blue :team/red}
+            :dead #{}} (status g)))))
+
+(deftest game-over
+  (let [g (integration-test
+           :starts {:blue [1 1] :red [4 1]}
+           :moves [[:blue :east :torpedo :reactor5]
+                   [:blue :east :torpedo :reactor6]
+                   [:blue :east :torpedo :green6]
+                   [:blue :torpedo [4 1]]
+                   [:blue :south :torpedo :reactor4]
+                   [:blue :south :torpedo :green4]
+                   [:blue :south :torpedo :yellow4]
+                   [:blue :torpedo [4 1]]])]
+    (is (nil? (:error g)))
+    (is (= {:status :game-over
+            :winners #{:team/blue}
+            :losers #{:team/red}}
+           (status g)))))
 
 (comment
   (run-tests 'dev.rob-3.submarine-commander.submarine-commander-test))

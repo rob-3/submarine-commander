@@ -168,6 +168,15 @@
 (defn team-of [gs player-id]
   (select-one [:players player-id :color] gs))
 
+(defn status [gs]
+  (let [teams (:teams gs)
+        team-statuses (update-vals teams :health)
+        dead (set (keep (fn [[k v]] (when (<= v 0) k)) team-statuses))
+        alive (set (keep (fn [[k v]] (when (> v 0) k)) team-statuses))]
+    (if (#{0 1} (count alive))
+      {:status :game-over :winners alive :losers dead} 
+      {:status :in-progress :alive alive :dead dead})))
+
 (defn print-board [board]
   (doseq [row board]
     (doseq [cell row]
