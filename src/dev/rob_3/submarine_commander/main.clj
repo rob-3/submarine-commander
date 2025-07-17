@@ -61,13 +61,12 @@
 (defonce state (atom {:rooms {} :users {}}))
 
 (defn board-html [board]
-  [:div {:style {:display "grid"
+  [:div {:style {:width "300px"
                  :font-family "monospace"
                  :gap 0
                  :letter-spacing 0
                  :line-height 1
                  :font-size "30px"
-                 :grid-template-columns "repeat(15, 20px)"
                  :text-align "center"}}
    (str/join "\n" (map #(str/join (map (fn [x] 
                                          (case x
