@@ -128,7 +128,7 @@
                                               "direction" "west"
                                               "room" room-id})} "West"]]])
 (defmethod player-html :radio-operator [_] [:div "radio-operator"])
-(defmethod player-html :first-mate [{:keys [room-id game player-id]}] [:div "first-mate"]
+(defmethod player-html :first-mate [{:keys [room-id game player-id]}]
   (let [team (team-of game player-id)
         systems (systems game team)
         b (fn [system]
