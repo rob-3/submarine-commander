@@ -1,3 +1,4 @@
+# Credit to https://mitchellh.com/writing/nix-with-dockerfiles
 FROM docker.io/nixos/nix:latest AS builder
 
 COPY . /tmp/build
