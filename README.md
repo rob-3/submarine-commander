@@ -19,7 +19,7 @@ docker build -t submarine-commander .
 Run the container.
 
 ```bash
-docker run -v .:/code/ -p12345:12345 -p3000:3000 -i submarine-commander:latest devbox run java -jar target/net.clojars.submarine-commander/submarine-commander-0.1.0-SNAPSHOT.jar
+docker run -p3000:3000 -i submarine-commander:latest
 ```
 
 ## License
