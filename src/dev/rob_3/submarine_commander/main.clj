@@ -93,7 +93,6 @@
                                             "breakdown" breakdown
                                             "room" room-id})} breakdown])
 
-(ns-unmap *ns* 'player-html)
 (defmulti player-html (fn [{:keys [game player-id]}]
                         (get-in game [:players player-id :role])))
 (defmethod player-html :captain [{:keys [room-id game player-id]}] 
