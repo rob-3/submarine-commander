@@ -8,13 +8,11 @@
   };
 
   outputs = { self, nixpkgs, flake-utils, clj-nix }:
-
     flake-utils.lib.eachDefaultSystem (system: {
-
-      packages = {
-
+      packages = let pkgs = nixpkgs.legacyPackages.${system};
+      in rec {
         default = clj-nix.lib.mkCljApp {
-          pkgs = nixpkgs.legacyPackages.${system};
+          pkgs = pkgs;
           modules = [
             {
               projectSrc = ./.;
@@ -22,6 +20,12 @@
               main-ns = "dev.rob-3.submarine-commander.main";
             }
           ];
+        };
+        docker = pkgs.dockerTools.buildLayeredImage {
+          name = "robs-submarine-commander";
+          tag = "latest";
+          contents = [default];
+          config.Cmd = ["${default}/bin/submarine-commander"];
         };
       };
     });

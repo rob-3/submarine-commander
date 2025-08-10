@@ -8,13 +8,15 @@
    [com.rpl.specter :refer [transform]]
    [dev.rob-3.submarine-commander.actions :refer [teams tick]]
    [dev.rob-3.submarine-commander.game-engine :refer [create-game]]
-   [dev.rob-3.submarine-commander.lenses :refer [board-of breakdowns systems team-of]]
+   [dev.rob-3.submarine-commander.lenses :refer [board-of breakdowns systems
+                                                 team-of]]
    [dev.rob-3.submarine-commander.maps :as maps]
    [hiccup.page :as page]
    [hiccup2.core :as h]
    [ring.adapter.jetty :as jetty]
    [ring.middleware.cookies :refer [wrap-cookies]]
    [ring.middleware.params :refer [wrap-params]]
+   [ring.middleware.resource :as resource]
    [ring.util.codec :refer [form-decode]]
    [ring.websocket :as ws]))
 
@@ -538,7 +540,8 @@
   (jetty/run-jetty (-> #(app %)
                        user-id-middleware
                        wrap-cookies
-                       wrap-params) {:port 3000 :join? false}))
+                       wrap-params
+                       (resource/wrap-resource "public")) {:port 3000 :join? false}))
 
 (comment
   (do
