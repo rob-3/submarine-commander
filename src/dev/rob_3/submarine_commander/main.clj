@@ -23,9 +23,6 @@
 (defmacro html [& args]
   `(str (h/html ~@args)))
 
-(defn file-rsp [f]
-  {:status 200 :headers {"vary" "hx-request" "cache-control" "no-store"} :body (slurp f)})
-
 (defn query-params [request]
   (-> request :query-string form-decode keywordize-keys))
 
@@ -497,9 +494,6 @@
 (defn app [request]
   (case [(:request-method request) (:uri request)]
     [:get "/"] (index-handler request)
-    [:get "/index.css"] (file-rsp "resources/index.css")
-    [:get "/htmx.js"] (file-rsp "resources/htmx.js")
-    [:get "/ws.js"] (file-rsp "resources/ws.js")
     [:post "/"] {:status 200 :headers {"vary" "hx-request" "cache-control" "no-store"} :body "post"}
     [:get "/room"] {:status 200
                     :headers {"vary" "hx-request"
