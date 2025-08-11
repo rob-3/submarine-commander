@@ -127,6 +127,25 @@
   (dirs->box-drawing [(dir-of prev cur)
                       (dir-of cur next)]))
 
+(defn trailess-board-of [gs team]
+  (let [mines (mines gs team)
+        islands (select-one [:map :islands] gs)]
+    (loop [x 1
+           y 1
+           board []]
+      (if (<= y 15)
+        (let [x' (if (= x 15) 1 (inc x))
+              y' (if (= x 15) (inc y) y)]
+          (recur x' y' (update board
+                               (dec y)
+                               (fnil conj [])
+                               (cond
+                                 (contains? mines [x y]) :mine
+                                   ;;(contains? trail [x y]) :trail
+                                 (contains? islands [x y]) :island
+                                 :else :empty))))
+        board))))
+
 (defn board-of [gs team]
   (let [mines (mines gs team)
         t (trail gs team)

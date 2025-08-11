@@ -8,8 +8,8 @@
    [com.rpl.specter :refer [transform]]
    [dev.rob-3.submarine-commander.actions :refer [teams tick]]
    [dev.rob-3.submarine-commander.game-engine :refer [create-game]]
-   [dev.rob-3.submarine-commander.lenses :refer [board-of breakdowns systems
-                                                 team-of]]
+   [dev.rob-3.submarine-commander.lenses :refer [breakdowns systems team-of
+                                                 trail trailess-board-of]]
    [dev.rob-3.submarine-commander.maps :as maps]
    [hiccup.page :as page]
    [hiccup2.core :as h]
@@ -59,7 +59,54 @@
 ;; That way we can prevent people from joining multiple rooms by mistake.
 (defonce state (atom {:rooms {} :users {}}))
 
-(defn board-html [board]
+(defn trail-svg-path [t]
+  (let [trail-coords (mapv (fn [coord] (mapv #(- (* 20 %) 10) coord)) t)
+        [f & rst] (mapv #(str/join " " %) trail-coords)
+        rst (mapv #(str "L" %) rst)
+        path-str (apply str "M" f rst)]
+    [:path {:d path-str
+            :style {:fill "transparent"
+                    :stroke "blue"
+                    :stroke-width "3px"}}]))
+
+(defn board-html [board trail]
+  (let [[x y] (last trail)]
+    [:div {:style {:font-family "monospace"
+                   :width "300px"
+                   :height "300px"
+                   :text-align "center"
+                   :gap 0
+                   :letter-spacing 0
+                   :line-height 1
+                   :display "grid"
+                   :place-items "center"
+                   :grid-template-columns "repeat(15, 1fr)"
+                   :grid-template-rows "repeat(15, 1fr)"
+                   :position "relative"
+                   :z-index 0}}
+      [:svg {:style {:position "absolute"
+                     :width "100%"
+                     :height "100%"
+                     :z-index 1}}
+            (trail-svg-path trail)]
+      (let [size 12.0]
+        [:div {:class "blink"
+               :style {:border-radius "50%"
+                       :background-color "blue"
+                       :width (str size "px")
+                       :height (str size "px")
+                       :position "absolute"
+                       :left (str (+ (- 10 (/ size 2)) (* 20 (dec x))) "px")
+                       :top (str (+ (- 10 (/ size 2)) (* 20 (dec y))) "px")
+                       :z-index 2}}])
+      (map (fn [row]
+             (map (fn [x]
+                    (case x
+                      :mine [:div "M"]
+                      :island [:div {:style {:background-color "black" :width "100%" :height "100%"}}]
+                      :empty [:div "·"])) row)) board)])) 
+
+(defn text-board-html [board]
   [:div {:style {:width "300px"
                  :font-family "monospace"
                  :gap 0
@@ -97,7 +144,8 @@
 (defmethod player-html :captain [{:keys [room-id game player-id]}] 
   [:div.container
    ;; FIXME (board-of game player-id) should exist
-   (board-html (board-of game (team-of game player-id)))
+   (let [team (team-of game player-id)]
+     (board-html (trailess-board-of game team) (trail game team)))
    [:div {:style {:display "grid"
                   :grid-template-columns "50px 50px 50px"
                   :grid-template-rows "auto"

@@ -41,3 +41,11 @@
 .two-col {
 	grid-column: 1 / 3;
 }
+
+.blink {
+	animation: blinky 1.4s step-start infinite;
+}
+
+@keyframes blinky {
+	15% { opacity: 0 }
+}
